@@ -1,0 +1,60 @@
+# ─── Python ──────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*.egg
+.eggs/
+build/
+dist/
+.installed.cfg
+pip-wheel-metadata/
+
+# Virtualenvs
+.venv/
+venv/
+env/
+ENV/
+
+# ─── Poetry ──────────────────────────────────────────────────────────────
+poetry.lock
+# ^ Decisión: lock-file NO se commitea para el server hasta que CI esté
+#   estabilizada. Cuando exista CI, revertir esta línea (sí commitear lock).
+
+# ─── Pytest / Coverage / Mypy / Ruff ─────────────────────────────────────
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.tox/
+.cache/
+.mypy_cache/
+.ruff_cache/
+
+# ─── Env / Secrets ───────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ─── Versioning ──────────────────────────────────────────────────────────
+src/yvy_server/_version.py
+# ^ Generado por scripts/embed_version.py en build time. Nunca se commitea.
+
+# ─── Docker ──────────────────────────────────────────────────────────────
+.docker/
+docker-compose.override.yml
+
+# ─── IDE ─────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ─── Logs / runtime ──────────────────────────────────────────────────────
+*.log
+logs/

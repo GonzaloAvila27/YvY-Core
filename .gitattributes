@@ -1,0 +1,51 @@
+# YVY Server · .gitattributes
+# ==============================================================
+# Forzamos line endings LF en todos los archivos de texto.
+# Sin esto, Windows mete CRLF en archivos como `docker-entrypoint.sh`
+# y el container Linux falla con:
+#   /usr/bin/env: 'bash\r': No such file or directory
+#
+# El `text=auto eol=lf` aplica por default; los overrides explícitos
+# de abajo son por defensa contra Git configs locales raras.
+# ==============================================================
+
+# Default: auto-detect text vs binary, normalize a LF al checkout
+* text=auto eol=lf
+
+# ─── Shell / Docker / CI — críticos, NUNCA CRLF ─────────────────
+*.sh            text eol=lf
+*.bash          text eol=lf
+docker-entrypoint.sh text eol=lf
+Dockerfile      text eol=lf
+.dockerignore   text eol=lf
+
+# ─── Python ─────────────────────────────────────────────────────
+*.py            text eol=lf diff=python
+*.pyi           text eol=lf diff=python
+
+# ─── Config / docs ──────────────────────────────────────────────
+*.md            text eol=lf
+*.toml          text eol=lf
+*.yaml          text eol=lf
+*.yml           text eol=lf
+*.json          text eol=lf
+*.ini           text eol=lf
+*.cfg           text eol=lf
+*.env           text eol=lf
+*.env.example   text eol=lf
+
+# ─── SQL (migraciones Alembic) ──────────────────────────────────
+*.sql           text eol=lf
+
+# ─── Binarios — marcados explícitos para evitar diff/merge raros ─
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.gif           binary
+*.ico           binary
+*.pdf           binary
+*.zip           binary
+*.tar           binary
+*.gz            binary
+*.whl           binary
+*.so            binary

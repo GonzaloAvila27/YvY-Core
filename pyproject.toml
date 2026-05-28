@@ -1,0 +1,146 @@
+[tool.poetry]
+name = "yvy-server"
+version = "0.9.1-dev"
+description = "YVY Central Server — Bronze ingest layer for distributed meteorological data from agricultural schools (IEAs)."
+authors = ["Gonzalo Avila <gonzalo@yvy.local>"]
+readme = "README.md"
+packages = [{include = "yvy_server", from = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+
+# HTTP framework
+fastapi = "^0.115.0"
+uvicorn = {extras = ["standard"], version = "^0.32.0"}
+
+# Validation
+pydantic = "^2.9.0"
+pydantic-settings = "^2.5.0"
+
+# Database (async)
+sqlalchemy = {extras = ["asyncio"], version = "^2.0.36"}
+asyncpg = "^0.30.0"
+alembic = "^1.13.0"
+
+# CLI (sync per decision Gonzalo 16-May-2026)
+typer = "^0.13.0"
+
+[tool.poetry.group.dev.dependencies]
+# Test framework
+pytest = "^8.3.0"
+pytest-asyncio = "^0.24.0"
+pytest-cov = "^6.0.0"
+httpx = "^0.27.0"  # FastAPI TestClient backend
+
+# Quality
+ruff = "^0.7.0"
+mypy = "^1.13.0"
+
+# Type stubs
+types-pyyaml = "*"
+
+[tool.poetry.scripts]
+yvy-server = "yvy_server.cli.cli:app"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+# ──────────────────────────────────────────────────────────────────────────
+# Ruff — mismo conjunto que edge para consistencia (ver yvy/pyproject.toml)
+# ──────────────────────────────────────────────────────────────────────────
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # isort
+    "B",        # flake8-bugbear
+    "C4",       # flake8-comprehensions
+    "UP",       # pyupgrade
+    "N",        # pep8-naming
+    "SIM",      # flake8-simplify
+    "RUF",      # ruff-specific
+    "ASYNC",    # async-specific anti-patterns
+]
+ignore = [
+    "E501",     # line-too-long (controlled by formatter)
+    "B008",     # function call in default arg — FastAPI Depends() needs this
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]  # assert allowed in tests
+"alembic/versions/*" = ["E402", "F401"]  # alembic generated files
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# ──────────────────────────────────────────────────────────────────────────
+# Mypy — strict por layer (igual que edge)
+# ──────────────────────────────────────────────────────────────────────────
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+warn_unused_ignores = true
+show_error_codes = true
+namespace_packages = true
+explicit_package_bases = true
+mypy_path = "src"
+
+[[tool.mypy.overrides]]
+# Tests can be less strict
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[[tool.mypy.overrides]]
+# Alembic generated files — fully ignored
+module = "alembic.*"
+ignore_errors = true
+
+# ──────────────────────────────────────────────────────────────────────────
+# Pytest
+# ──────────────────────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["src"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+]
+markers = [
+    "integration: tests that require a running Postgres",
+    "unit: pure unit tests (no I/O)",
+]
+
+# ──────────────────────────────────────────────────────────────────────────
+# Coverage
+# ──────────────────────────────────────────────────────────────────────────
+[tool.coverage.run]
+source = ["src/yvy_server"]
+branch = true
+omit = [
+    "*/alembic/*",
+    "*/cli/*",  # CLI tested via subprocess in integration
+    "*/__init__.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "\\.\\.\\.",
+]
+show_missing = true
+skip_covered = false
