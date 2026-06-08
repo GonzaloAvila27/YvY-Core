@@ -37,7 +37,7 @@ src/yvy_server/
 
 ## Setup local (sin Docker)
 
-```sh
+```bash
 # 1. Levantar Postgres (recomendado: docker-compose para no ensuciar el host)
 docker compose up -d postgres
 
@@ -65,14 +65,14 @@ poetry run uvicorn yvy_server.main:app --reload --host 0.0.0.0 --port 8000
 
 Healthcheck:
 
-```sh
+```bash
 curl http://localhost:8000/api/v1/healthz
 # {"status":"ok"}
 ```
 
 ## Setup con Docker
 
-```sh
+```bash
 cp .env.example .env
 docker compose up --build
 ```
@@ -84,7 +84,7 @@ arrancar Uvicorn (ver `docker-entrypoint.sh`).
 
 Requieren Postgres corriendo (los integration usan un schema temporal).
 
-```sh
+```bash
 # Asegurarse de que postgres está up
 docker compose up -d postgres
 
@@ -100,7 +100,7 @@ poetry run pytest --cov=yvy_server --cov-report=term-missing
 
 ## Quality
 
-```sh
+```bash
 poetry run ruff check .
 poetry run ruff format --check .
 poetry run mypy src
@@ -108,7 +108,7 @@ poetry run mypy src
 
 ## CLI
 
-```sh
+```bash
 poetry run yvy-server --help
 poetry run yvy-server create-station --help
 ```
@@ -134,7 +134,7 @@ correr idéntico en el server.
 `.py`, etc). Si Git fue clonado *antes* de que existiera `.gitattributes`,
 hace falta renormalizar una vez:
 
-```sh
+```bash
 git add --renormalize .
 git commit -m "chore: normalize line endings"
 ```
@@ -165,7 +165,7 @@ hints en VS Code mientras tests + run pesado siempre va por container.
 
 ### 4. Flujo de dev
 
-```sh
+```bash
 # Dentro de Git Bash en Windows:
 git pull
 # editás código
@@ -198,7 +198,7 @@ intermedio. Hasta entonces, todo el trabajo va en Windows + push a Git.
 
 Cuando llegue ese momento:
 
-```sh
+```bash
 ssh server.tecnicatura
 cd ~/yvy-server
 git pull
