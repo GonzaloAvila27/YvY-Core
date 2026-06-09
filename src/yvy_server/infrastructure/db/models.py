@@ -272,3 +272,66 @@ class IngestFailureORM(Base):
     )
     resolved_action: Mapped[str | None] = mapped_column(Text, nullable=True)
     resolution_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+# ─── public.sync_state ──────────────────────────────────────────────────
+
+
+class SyncStateORM(Base):
+    """Singleton row tracking the global monotonic ``sync_version`` counter.
+
+    Always exactly one row (id=1). Incremented atomically via
+    ``UPDATE sync_state SET sync_version = sync_version + 1 RETURNING sync_version``
+    inside a transaction every time a distributable change is published
+    (new release, future: feed item, alert, etc.).
+    """
+
+    __tablename__ = "sync_state"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    sync_version: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, server_default="0"
+    )
+
+
+# ─── public.edge_releases ───────────────────────────────────────────────
+
+
+class EdgeReleaseORM(Base):
+    """Maps ``public.edge_releases``.
+
+    Each row is a published YVY Edge software release that edge nodes can
+    discover via ``GET /api/v1/edge/sync`` and download via
+    ``GET /api/v1/edge/updates/{filename}``.
+    """
+
+    __tablename__ = "edge_releases"
+    __table_args__ = (
+        Index("ix_edge_releases_edge_version", "edge_version", unique=True),
+        # Partial index for "latest active release" queries
+        Index(
+            "ix_edge_releases_active_released",
+            "is_active",
+            text("released_at DESC"),
+            postgresql_where=text("is_active = true"),
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    edge_version: Mapped[str] = mapped_column(Text, nullable=False)
+    package_filename: Mapped[str] = mapped_column(Text, nullable=False)
+    package_sha256: Mapped[str] = mapped_column(Text, nullable=False)
+    package_size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    min_edge_version: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=""
+    )
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    released_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    )
+    is_active: Mapped[bool] = mapped_column(
+        nullable=False, server_default="true"
+    )
+    sync_version: Mapped[int] = mapped_column(BigInteger, nullable=False)

@@ -12,8 +12,10 @@ Startup:
     4. Instantiate stateless repositories (one of each).
     5. Build the ``EnvelopeValidator`` from settings + repos.
     6. Build the Track A publisher (``PostgresDirectPublisher``).
-    7. Build the ``IngestObservationUseCase``.
-    8. Store all the above on ``app.state`` for dependencies to read.
+    7. Build the three ingest use cases (observation, sensor, event).
+    8. Build the ``EdgeReleaseRepository`` and read the initial
+       ``sync_version`` from the database.
+    9. Store all the above on ``app.state`` for dependencies to read.
 
 Shutdown:
     - ``dispose_engine`` closes the connection pool gracefully.
@@ -42,7 +44,11 @@ from fastapi import FastAPI
 
 from yvy_server import __version__
 from yvy_server.application.auth import EnvelopeValidator
-from yvy_server.application.use_cases import IngestObservationUseCase
+from yvy_server.application.use_cases import (
+    IngestEventUseCase,
+    IngestObservationUseCase,
+    IngestSensorUseCase,
+)
 from yvy_server.config import get_settings
 from yvy_server.infrastructure.db import (
     create_engine_and_session_factory,
@@ -51,6 +57,7 @@ from yvy_server.infrastructure.db import (
 from yvy_server.infrastructure.persistence import (
     BronzeRepository,
     CredentialRepository,
+    EdgeReleaseRepository,
     IngestFailuresRepository,
     IngestLogRepository,
     StationRepository,
@@ -58,7 +65,7 @@ from yvy_server.infrastructure.persistence import (
 from yvy_server.infrastructure.publisher import PostgresDirectPublisher
 from yvy_server.logging_setup import setup_logging
 from yvy_server.presentation.api import ServerHeadersMiddleware
-from yvy_server.presentation.api.routers import admin, health, ingest
+from yvy_server.presentation.api.routers import admin, edge, health, ingest
 
 
 @asynccontextmanager
@@ -88,6 +95,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     bronze_repo = BronzeRepository()
     log_repo = IngestLogRepository()
     failures_repo = IngestFailuresRepository()
+    edge_release_repo = EdgeReleaseRepository()
 
     # ─── Application services ───────────────────────────────────────────
     envelope_validator = EnvelopeValidator(
@@ -98,12 +106,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
 
     # ─── Publisher (Track A) ────────────────────────────────────────────
-    # When Track B is ready, replace this line with DualPublisher or
-    # KafkaPublisher. The use case below doesn't change.
     publisher = PostgresDirectPublisher(session_factory, bronze_repo)
 
     # ─── Use cases ──────────────────────────────────────────────────────
-    ingest_observation_use_case = IngestObservationUseCase(
+    _uc_kwargs = dict(
         validator=envelope_validator,
         publisher=publisher,
         log_repo=log_repo,
@@ -111,14 +117,33 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         session_factory=session_factory,
         producer_version=__version__,
     )
+    ingest_observation_use_case = IngestObservationUseCase(**_uc_kwargs)
+    ingest_sensor_use_case = IngestSensorUseCase(**_uc_kwargs)
+    ingest_event_use_case = IngestEventUseCase(**_uc_kwargs)
+
+    # ─── Seed sync_version cache ─────────────────────────────────────────
+    # Cached at startup so ingest piggyback headers have a real value
+    # immediately. Stale after publish-update until server restart —
+    # acceptable for the pilot (operator restarts after publishing).
+    async with session_factory() as _session:
+        initial_sync_version = await edge_release_repo.get_current_sync_version(_session)
 
     # ─── Wire to app.state ──────────────────────────────────────────────
     app.state.settings = settings
     app.state.engine = engine
     app.state.session_factory = session_factory
+    app.state.station_repo = station_repo
+    app.state.credential_repo = credential_repo
+    app.state.edge_release_repo = edge_release_repo
     app.state.ingest_observation_use_case = ingest_observation_use_case
+    app.state.ingest_sensor_use_case = ingest_sensor_use_case
+    app.state.ingest_event_use_case = ingest_event_use_case
+    app.state.sync_version = initial_sync_version
 
-    log.info("startup complete; ready to serve requests")
+    log.info(
+        "startup complete; ready to serve requests",
+        extra={"initial_sync_version": initial_sync_version},
+    )
 
     try:
         yield
@@ -145,20 +170,15 @@ def create_app() -> FastAPI:
         ),
         version=__version__,
         lifespan=lifespan,
-        # Hide the default ``/redoc`` to keep the surface minimal in 9.1.
-        # ``/docs`` stays open for dev; close it in 9.3 production config.
         redoc_url=None,
     )
 
-    # Global headers on every response (X-Server-Time, X-Schema-Versions-
-    # Supported, X-Server-Version). Reads app.state.settings at request
-    # time, so it works regardless of when settings were populated.
     app.add_middleware(ServerHeadersMiddleware)
 
-    # Routers
     app.include_router(health.router)
     app.include_router(admin.router)
     app.include_router(ingest.router)
+    app.include_router(edge.router)
 
     return app
 

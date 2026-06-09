@@ -24,7 +24,7 @@ the Fase 8.5a empirical observation form).
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -124,3 +124,169 @@ class IngestErrorResponse(BaseModel):
 
     error: str
     error_class: Literal["SCHEMA", "AUTH", "CLOCK", "SERVER"]
+
+
+# ─── Sensor reading payload (POST /api/v1/ingest/sensor) ────────────────
+
+
+class SensorReadingPayload(BaseModel):
+    """Payload of ``POST /api/v1/ingest/sensor``.
+
+    Fields mirror the pywws output from ``capture_live_reading`` in the
+    Edge (see ``YVY_IEAProject/Fase_0/yvy/src/yvy/application/use_cases/
+    sensor/capture_live_reading.py#_build_sync_payload``).
+
+    Numeric readings arrive as strings from pywws (Decimal → str).
+    ``extra="allow"`` for forward compatibility.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    # Required — observation timestamp from the sensor clock
+    observed_at: str  # ISO 8601 string from pywws
+    event_id: str  # UUID string (v5 deterministic)
+
+    # Sensor mode (LIVE / CATCHUP)
+    pywws_mode: str | None = None
+
+    # Temperature (strings — pywws outputs Decimal)
+    temp_indoor: str | None = None
+    temp_outdoor: str | None = None
+
+    # Humidity (ints)
+    hum_indoor: int | None = None
+    hum_outdoor: int | None = None
+
+    # Pressure (strings — Decimal)
+    pressure_abs: str | None = None
+    pressure_rel: str | None = None
+
+    # Wind (strings for speed/gust, int for direction bearing)
+    wind_speed: str | None = None
+    wind_gust: str | None = None
+    wind_dir: int | None = None
+
+    # Rain accumulations (strings — Decimal)
+    rain_1h: str | None = None
+    rain_24h: str | None = None
+    rain_total: str | None = None
+
+    # UV / solar
+    uv_index: int | None = None
+    solar_radiation: str | None = None
+
+    # QA flags
+    is_valid: bool | None = None
+    validation_notes: str | None = None
+
+
+# ─── Empirical event payload (POST /api/v1/ingest/event) ────────────────
+
+
+class EmpiricalEventPayload(BaseModel):
+    """Payload of ``POST /api/v1/ingest/event``.
+
+    Represents a point-in-time meteorological event (frost, hail, strong
+    wind, etc.) recorded by a student observer. Fields mirror
+    ``EmpiricalEvent`` in the Edge domain.
+
+    ``extra="allow"`` for forward compatibility.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    # Required
+    event_record_id: str  # UUID v4 string
+    observation_date: str  # YYYY-MM-DD
+    event_type: str  # matches EventType enum values on Edge
+
+    # Optional context
+    observation_id: str | None = None  # UUID of linked observation
+    started_at_local: str | None = None  # HH:MM
+    ended_at_local: str | None = None  # HH:MM
+    hail_size: str | None = None
+    description: str | None = None
+
+    # QA flags
+    is_valid: bool | None = None
+    created_by_user_id: int | None = None
+
+
+# ─── Admin stats response (GET /api/v1/admin/stats) ─────────────────────
+
+
+class AdminStatsResponse(BaseModel):
+    """``GET /api/v1/admin/stats`` — ingest statistics snapshot."""
+
+    total_attempts: int
+    total_successes: int
+    total_failures: int
+    failures_by_class: dict[str, int]
+    attempts_by_endpoint: dict[str, int]
+
+
+# ─── Admin failures responses (GET /api/v1/admin/failures) ──────────────
+
+
+class AdminFailureItem(BaseModel):
+    """Single DLQ entry as returned in the failures list."""
+
+    id: int
+    event_id: UUID | None
+    station_uuid: UUID | None
+    entity_type: str | None
+    endpoint: str
+    failure_class: str
+    failure_reason: str
+    received_at: datetime
+    received_from_ip: str | None
+    # Expose the raw envelope so the admin can inspect it
+    raw_envelope: dict[str, Any]
+
+
+class AdminFailuresResponse(BaseModel):
+    """``GET /api/v1/admin/failures`` — paginated unresolved DLQ entries."""
+
+    total: int
+    items: list[AdminFailureItem]
+
+
+class AdminResolveRequest(BaseModel):
+    """Body of ``POST /api/v1/admin/failures/{id}/resolve``."""
+
+    action: Literal["reprocessed", "discarded", "fixed_at_source"]
+    notes: str | None = Field(default=None, max_length=1000)
+
+
+class AdminResolveResponse(BaseModel):
+    """Response of ``POST /api/v1/admin/failures/{id}/resolve``."""
+
+    resolved: bool
+    failure_id: int
+
+
+# ─── Edge sync response (GET /api/v1/edge/sync) ──────────────────────────
+
+
+class EdgeUpdateMetadata(BaseModel):
+    """Metadata block included when an update is available."""
+
+    edge_version: str
+    package_url: str
+    package_sha256: str
+    package_size_bytes: int
+    released_at: datetime
+    min_edge_version: str
+    notes: str | None = None
+
+
+class EdgeSyncResponse(BaseModel):
+    """``GET /api/v1/edge/sync`` — current sync state for this edge node.
+
+    If ``updates.available`` is ``False``, only the ``available`` field
+    is present under ``updates``. If ``True``, all fields of
+    ``EdgeUpdateMetadata`` are included.
+    """
+
+    sync_version: int
+    updates: dict[str, Any]

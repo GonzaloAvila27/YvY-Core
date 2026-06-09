@@ -1,25 +1,19 @@
 """Ingest endpoints.
 
-In 9.1 only ``/api/v1/ingest/observation`` is fully implemented.
-``/api/v1/ingest/comment`` is a 501 stub kept for endpoint matrix
-completeness. ``/api/v1/ingest/sensor`` and ``/api/v1/ingest/event``
-land in 9.2 with the same handler shape as observation.
+All handlers follow the same thin pattern:
+1. Capture ``received_at_utc`` once.
+2. Read raw body bytes and parse as JSON dict.
+3. Build a ``payload_validator`` closure for the endpoint's Pydantic model.
+4. Delegate to the appropriate use case's ``execute()``.
+5. Map the ``IngestOutcome`` to an HTTP response.
 
-Handler shape
--------------
+Every successful ingest response includes an ``X-Server-Sync-Version``
+header so edge nodes can trigger the update-check daemon when Core has
+published a new release since their last known sync_version (piggyback
+mechanism — see ``YVY_Core_Spec_Canal_Pull.md`` §5).
 
-The handlers stay thin. They:
-
-1. Read raw body bytes (NOT a Pydantic envelope — see schemas.py).
-2. Parse as JSON dict.
-3. Build a ``payload_validator`` closure that runs the endpoint's
-   typed Pydantic model.
-4. Call the appropriate use case's ``execute(...)``.
-5. Map the ``IngestOutcome`` (``IngestSuccess`` or ``IngestFailure``)
-   to an HTTP response with status + body.
-
-All ingest_log / ingest_failures persistence happens inside the use
-case. The handler does not touch repos directly.
+All ingest_log / ingest_failures writes happen inside the use case; the
+handler does not touch repos directly.
 """
 from __future__ import annotations
 
@@ -31,18 +25,96 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
 from yvy_server.application.use_cases import (
+    IngestEventUseCase,
     IngestFailure,
     IngestObservationUseCase,
+    IngestSensorUseCase,
     IngestSuccess,
 )
-from yvy_server.presentation.api.dependencies import get_observation_use_case
+from yvy_server.presentation.api.dependencies import (
+    get_event_use_case,
+    get_observation_use_case,
+    get_sensor_use_case,
+)
 from yvy_server.presentation.api.schemas import (
+    EmpiricalEventPayload,
     EmpiricalObservationPayload,
     IngestErrorResponse,
     IngestSuccessResponse,
+    SensorReadingPayload,
 )
 
 router = APIRouter(prefix="/api/v1/ingest", tags=["ingest"])
+
+_SYNC_VERSION_HEADER = "X-Server-Sync-Version"
+
+
+def _sync_version_header(request: Request) -> dict[str, str]:
+    """Read cached sync_version from app.state (populated at startup)."""
+    sv: int = getattr(request.app.state, "sync_version", 0)
+    return {_SYNC_VERSION_HEADER: str(sv)}
+
+
+# ─── Shared handler logic ─────────────────────────────────────────────────
+
+
+async def _run_ingest(
+    request: Request,
+    use_case: IngestObservationUseCase | IngestSensorUseCase | IngestEventUseCase,
+    payload_validator_factory: type,
+) -> JSONResponse:
+    """Common ingest handler body for all three endpoints."""
+    received_at_utc = _dt.datetime.now(_dt.UTC)
+    extra_headers = _sync_version_header(request)
+
+    raw_bytes = await request.body()
+    try:
+        envelope = json.loads(raw_bytes)
+    except json.JSONDecodeError as exc:
+        return _error_response(
+            status_code=400,
+            error_class="SCHEMA",
+            error_message=f"Body is not valid JSON: {exc.msg}",
+            headers=extra_headers,
+        )
+
+    if not isinstance(envelope, dict):
+        return _error_response(
+            status_code=400,
+            error_class="SCHEMA",
+            error_message="Body must be a JSON object",
+            headers=extra_headers,
+        )
+
+    def _validate_payload(payload: dict) -> None:
+        payload_validator_factory.model_validate(payload)
+
+    outcome = await use_case.execute(
+        envelope=envelope,
+        received_at_utc=received_at_utc,
+        received_from_ip=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+        payload_validator=_validate_payload,
+    )
+
+    if isinstance(outcome, IngestSuccess):
+        body = IngestSuccessResponse(
+            ingest_result="duplicate" if outcome.was_duplicate else "inserted",
+            event_id=outcome.event_id,
+            received_at_utc=outcome.received_at_utc,
+        )
+        return JSONResponse(
+            status_code=200,
+            content=body.model_dump(mode="json"),
+            headers=extra_headers,
+        )
+
+    return _error_response(
+        status_code=outcome.http_status,
+        error_class=outcome.error_class,  # type: ignore[arg-type]
+        error_message=outcome.error_message,
+        headers=extra_headers,
+    )
 
 
 # ─── POST /api/v1/ingest/observation ────────────────────────────────────
@@ -64,67 +136,50 @@ async def ingest_observation(
         IngestObservationUseCase, Depends(get_observation_use_case)
     ],
 ) -> JSONResponse:
-    """Ingest an empirical observation envelope.
+    """Ingest an empirical observation envelope (HMAC-signed)."""
+    return await _run_ingest(request, use_case, EmpiricalObservationPayload)
 
-    Flow:
-        1. Capture ``received_at_utc`` (once, used everywhere — decision 8).
-        2. Read raw body + parse JSON.
-        3. Reject if body isn't a JSON object.
-        4. Delegate to ``IngestObservationUseCase.execute`` with a
-           closure that validates the payload via Pydantic.
-        5. Map outcome to HTTP response.
-    """
-    received_at_utc = _dt.datetime.now(_dt.UTC)
 
-    # 1. Read & parse JSON
-    raw_bytes = await request.body()
-    try:
-        envelope = json.loads(raw_bytes)
-    except json.JSONDecodeError as exc:
-        return _error_response(
-            status_code=400,
-            error_class="SCHEMA",
-            error_message=f"Body is not valid JSON: {exc.msg}",
-        )
+# ─── POST /api/v1/ingest/sensor ──────────────────────────────────────────
 
-    if not isinstance(envelope, dict):
-        return _error_response(
-            status_code=400,
-            error_class="SCHEMA",
-            error_message="Body must be a JSON object",
-        )
 
-    # 2. Build the Pydantic payload validator closure.
-    #    The use case calls it AFTER HMAC verification. If it raises,
-    #    the use case records to ingest_failures and returns
-    #    IngestFailure(400, "SCHEMA").
-    def _validate_payload(payload: dict) -> None:
-        EmpiricalObservationPayload.model_validate(payload)
+@router.post(
+    "/sensor",
+    responses={
+        200: {"model": IngestSuccessResponse},
+        400: {"model": IngestErrorResponse, "description": "Schema error"},
+        401: {"model": IngestErrorResponse, "description": "Auth error"},
+        422: {"model": IngestErrorResponse, "description": "Clock skew"},
+        500: {"model": IngestErrorResponse, "description": "Server error"},
+    },
+)
+async def ingest_sensor(
+    request: Request,
+    use_case: Annotated[IngestSensorUseCase, Depends(get_sensor_use_case)],
+) -> JSONResponse:
+    """Ingest a sensor reading envelope (HMAC-signed)."""
+    return await _run_ingest(request, use_case, SensorReadingPayload)
 
-    # 3. Delegate to use case
-    outcome = await use_case.execute(
-        envelope=envelope,
-        received_at_utc=received_at_utc,
-        received_from_ip=request.client.host if request.client else None,
-        user_agent=request.headers.get("user-agent"),
-        payload_validator=_validate_payload,
-    )
 
-    # 4. Map outcome to HTTP response
-    if isinstance(outcome, IngestSuccess):
-        body = IngestSuccessResponse(
-            ingest_result="duplicate" if outcome.was_duplicate else "inserted",
-            event_id=outcome.event_id,
-            received_at_utc=outcome.received_at_utc,
-        )
-        return JSONResponse(status_code=200, content=body.model_dump(mode="json"))
+# ─── POST /api/v1/ingest/event ───────────────────────────────────────────
 
-    # IngestFailure
-    return _error_response(
-        status_code=outcome.http_status,
-        error_class=outcome.error_class,  # type: ignore[arg-type]
-        error_message=outcome.error_message,
-    )
+
+@router.post(
+    "/event",
+    responses={
+        200: {"model": IngestSuccessResponse},
+        400: {"model": IngestErrorResponse, "description": "Schema error"},
+        401: {"model": IngestErrorResponse, "description": "Auth error"},
+        422: {"model": IngestErrorResponse, "description": "Clock skew"},
+        500: {"model": IngestErrorResponse, "description": "Server error"},
+    },
+)
+async def ingest_event(
+    request: Request,
+    use_case: Annotated[IngestEventUseCase, Depends(get_event_use_case)],
+) -> JSONResponse:
+    """Ingest an empirical event envelope (HMAC-signed)."""
+    return await _run_ingest(request, use_case, EmpiricalEventPayload)
 
 
 # ─── POST /api/v1/ingest/comment (stub 501) ─────────────────────────────
@@ -137,19 +192,14 @@ async def ingest_observation(
     },
 )
 async def ingest_comment() -> JSONResponse:
-    """Stub: comments aren't accepted in 9.1.
+    """Stub: comments are not yet accepted.
 
-    The endpoint exists so the endpoint matrix is complete and clients
-    receive a consistent ``IngestErrorResponse`` shape. ``error_class``
-    is set to ``"SCHEMA"`` so the edge agent treats the failure as
-    permanent (DLQ), not retryable.
-
-    Will be replaced in 9.2 when the comment ingest is added.
+    Returns ``SCHEMA`` error so the edge treats it as permanent DLQ.
     """
     return _error_response(
         status_code=501,
         error_class="SCHEMA",
-        error_message="Endpoint not implemented in 9.1, scheduled for 9.2",
+        error_message="Endpoint not implemented; scheduled for a future release",
     )
 
 
@@ -161,15 +211,14 @@ def _error_response(
     status_code: int,
     error_class: str,
     error_message: str,
+    headers: dict[str, str] | None = None,
 ) -> JSONResponse:
-    """Build a typed error response uniformly.
-
-    Using ``IngestErrorResponse.model_dump`` ensures the JSON shape
-    matches the OpenAPI spec. We pass ``error_class`` as ``str`` and
-    rely on Pydantic to validate it against the ``Literal[...]``.
-    """
     body = IngestErrorResponse(
         error=error_message,
         error_class=error_class,  # type: ignore[arg-type]
     )
-    return JSONResponse(status_code=status_code, content=body.model_dump(mode="json"))
+    return JSONResponse(
+        status_code=status_code,
+        content=body.model_dump(mode="json"),
+        headers=headers,
+    )

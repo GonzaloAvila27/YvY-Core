@@ -1,5 +1,11 @@
 """Ingest failures repository — server-side DLQ for post-HMAC failures.
 
+9.2 additions:
+- ``list_unresolved``: paginated listing of open DLQ entries for
+  ``GET /admin/failures``.
+- ``resolve``: mark a single entry as resolved for
+  ``POST /admin/failures/{id}/resolve``.
+
 When an envelope passes HMAC verification but the payload then fails
 the typed Pydantic validation (or any other post-HMAC SCHEMA issue),
 the full raw envelope is written here for forensic inspection.
@@ -33,13 +39,14 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID as PyUUID
 
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from yvy_server.infrastructure.db import IngestFailureORM
 
 
 class IngestFailuresRepository:
-    """Write-only inserts to ``bronze.ingest_failures``."""
+    """Inserts + admin reads/updates on ``bronze.ingest_failures``."""
 
     async def record_failure(
         self,
@@ -91,3 +98,52 @@ class IngestFailuresRepository:
                 received_from_ip=received_from_ip,
             )
         )
+
+    async def list_unresolved(
+        self,
+        session: AsyncSession,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[IngestFailureORM]:
+        """Return paginated unresolved DLQ entries, newest first."""
+        result = await session.execute(
+            select(IngestFailureORM)
+            .where(IngestFailureORM.resolved_at.is_(None))
+            .order_by(text("received_at DESC"))
+            .limit(limit)
+            .offset(offset)
+        )
+        return list(result.scalars().all())
+
+    async def get_by_id(
+        self, session: AsyncSession, failure_id: int
+    ) -> IngestFailureORM | None:
+        """Return a single DLQ entry by its primary key."""
+        result = await session.execute(
+            select(IngestFailureORM).where(IngestFailureORM.id == failure_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def resolve(
+        self,
+        session: AsyncSession,
+        failure_id: int,
+        *,
+        resolved_action: str,
+        resolution_notes: str | None,
+        resolved_at: datetime,
+    ) -> bool:
+        """Mark a DLQ entry as resolved.
+
+        Returns:
+            ``True`` if the row was found and updated; ``False`` if the
+            failure_id doesn't exist or is already resolved.
+        """
+        row = await self.get_by_id(session, failure_id)
+        if row is None or row.resolved_at is not None:
+            return False
+        row.resolved_at = resolved_at
+        row.resolved_action = resolved_action
+        row.resolution_notes = resolution_notes
+        return True

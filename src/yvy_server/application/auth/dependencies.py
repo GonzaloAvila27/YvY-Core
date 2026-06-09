@@ -23,9 +23,18 @@ from typing import Annotated
 from fastapi import Depends, Header, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from yvy_server.application.use_cases import IngestObservationUseCase
+from yvy_server.application.use_cases import (
+    IngestEventUseCase,
+    IngestObservationUseCase,
+    IngestSensorUseCase,
+)
 from yvy_server.config import Settings
 from yvy_server.infrastructure.db import SessionFactory
+from yvy_server.infrastructure.persistence import (
+    CredentialRepository,
+    EdgeReleaseRepository,
+    StationRepository,
+)
 
 
 # ─── State accessors ────────────────────────────────────────────────────
@@ -60,6 +69,31 @@ async def get_session_dep(
 def get_observation_use_case(request: Request) -> IngestObservationUseCase:
     """Return the ``IngestObservationUseCase`` instance from app.state."""
     return request.app.state.ingest_observation_use_case  # type: ignore[no-any-return]
+
+
+def get_sensor_use_case(request: Request) -> IngestSensorUseCase:
+    """Return the ``IngestSensorUseCase`` instance from app.state."""
+    return request.app.state.ingest_sensor_use_case  # type: ignore[no-any-return]
+
+
+def get_event_use_case(request: Request) -> IngestEventUseCase:
+    """Return the ``IngestEventUseCase`` instance from app.state."""
+    return request.app.state.ingest_event_use_case  # type: ignore[no-any-return]
+
+
+def get_edge_release_repo(request: Request) -> EdgeReleaseRepository:
+    """Return the ``EdgeReleaseRepository`` instance from app.state."""
+    return request.app.state.edge_release_repo  # type: ignore[no-any-return]
+
+
+def get_station_repo(request: Request) -> StationRepository:
+    """Return the ``StationRepository`` instance from app.state."""
+    return request.app.state.station_repo  # type: ignore[no-any-return]
+
+
+def get_credential_repo(request: Request) -> CredentialRepository:
+    """Return the ``CredentialRepository`` instance from app.state."""
+    return request.app.state.credential_repo  # type: ignore[no-any-return]
 
 
 # ─── Admin auth ─────────────────────────────────────────────────────────

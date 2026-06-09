@@ -99,6 +99,11 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = Field(default=8000, ge=1, le=65535)
 
+    # ─── Canal Core → Edge ───────────────────────────────────────────────
+    # Directory where published .tar.gz packages are stored. Relative paths
+    # resolve from the working directory at runtime.
+    releases_dir: str = "data/releases"
+
     # ─── Parsers ─────────────────────────────────────────────────────────
     @field_validator("supported_schemas", mode="before")
     @classmethod

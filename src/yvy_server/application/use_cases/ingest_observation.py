@@ -1,6 +1,6 @@
-"""Use case: ``POST /api/v1/ingest/observation``.
+"""Use cases for all ingest endpoints (observation, sensor, event).
 
-End-to-end orchestration of a single empirical observation ingest:
+Common pipeline for all three:
 
 1. Validate envelope (shape + HMAC + clock) via ``EnvelopeValidator``.
 2. Validate the payload typing via an injected callable (the handler
@@ -10,6 +10,9 @@ End-to-end orchestration of a single empirical observation ingest:
 5. On post-HMAC payload failure, also record to ``bronze.ingest_failures``
    (the server DLQ).
 6. Return an ``IngestOutcome`` that the handler maps to an HTTP response.
+
+The base class ``_BaseIngestUseCase`` implements the full pipeline.
+Each endpoint subclass overrides only ``ENDPOINT`` and ``ENTITY_TYPE``.
 
 The use case catches all expected errors internally so the handler stays
 thin. Only truly unexpected exceptions (e.g. Postgres down mid-publish)
@@ -21,7 +24,7 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, ClassVar
 from uuid import UUID
 
 from yvy_server.application.auth.envelope_validator import EnvelopeValidator
@@ -33,7 +36,7 @@ from yvy_server.infrastructure.persistence import (
     IngestLogRepository,
 )
 
-_log = logging.getLogger("yvy.ingest.observation")
+_log = logging.getLogger("yvy.ingest")
 
 
 # ─── Outcome value objects (discriminated union) ────────────────────────
@@ -65,21 +68,14 @@ class IngestFailure:
 IngestOutcome = IngestSuccess | IngestFailure
 
 
-# ─── Use case ────────────────────────────────────────────────────────────
+# ─── Base use case ────────────────────────────────────────────────────────
 
 
-class IngestObservationUseCase:
-    """Use case for empirical observation ingest.
+class _BaseIngestUseCase:
+    """Full ingest pipeline. Subclasses set ``ENDPOINT`` and ``ENTITY_TYPE``."""
 
-    A single endpoint maps to a single use case instance. The
-    composition root in ``main.py`` (step 7) instantiates one per
-    endpoint that needs ingest semantics: observation, event, sensor
-    each get their own (sharing the same dependencies but differing in
-    ``ENDPOINT`` and ``ENTITY_TYPE``).
-    """
-
-    ENDPOINT: str = "/api/v1/ingest/observation"
-    ENTITY_TYPE: EntityType = EntityType.EMPIRICAL_OBSERVATION
+    ENDPOINT: ClassVar[str]
+    ENTITY_TYPE: ClassVar[EntityType]
 
     def __init__(
         self,
@@ -298,3 +294,27 @@ class IngestObservationUseCase:
                 request_ip=request_ip,
                 user_agent=user_agent,
             )
+
+
+# ─── Concrete use cases (one per ingest endpoint) ────────────────────────
+
+
+class IngestObservationUseCase(_BaseIngestUseCase):
+    """Ingest use case for ``POST /api/v1/ingest/observation``."""
+
+    ENDPOINT = "/api/v1/ingest/observation"
+    ENTITY_TYPE = EntityType.EMPIRICAL_OBSERVATION
+
+
+class IngestSensorUseCase(_BaseIngestUseCase):
+    """Ingest use case for ``POST /api/v1/ingest/sensor``."""
+
+    ENDPOINT = "/api/v1/ingest/sensor"
+    ENTITY_TYPE = EntityType.SENSOR_READING
+
+
+class IngestEventUseCase(_BaseIngestUseCase):
+    """Ingest use case for ``POST /api/v1/ingest/event``."""
+
+    ENDPOINT = "/api/v1/ingest/event"
+    ENTITY_TYPE = EntityType.EMPIRICAL_EVENT

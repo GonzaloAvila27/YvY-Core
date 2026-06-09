@@ -1,4 +1,4 @@
-"""Ingest log repository — write-only append to ``bronze.ingest_log``.
+"""Ingest log repository — append + aggregate queries on ``bronze.ingest_log``.
 
 Every ingest attempt is logged here, whether it succeeded or failed.
 This is the audit trail the operator queries to understand traffic and
@@ -13,20 +13,33 @@ Schema notes
   and non-NULL for failures. The partial index
   ``idx_ingest_log_failures`` (``WHERE failure_class IS NOT NULL``)
   makes admin queries over failures cheap.
-- This is append-only; we never UPDATE existing rows.
+- ``record_attempt`` is append-only; ``get_stats`` is read-only.
 """
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import UUID as PyUUID
 
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from yvy_server.infrastructure.db import IngestLogORM
 
 
+@dataclass
+class IngestStats:
+    """Aggregated statistics returned by ``IngestLogRepository.get_stats``."""
+
+    total_attempts: int = 0
+    total_successes: int = 0
+    total_failures: int = 0
+    failures_by_class: dict[str, int] = field(default_factory=dict)
+    attempts_by_endpoint: dict[str, int] = field(default_factory=dict)
+
+
 class IngestLogRepository:
-    """Append-only writes to ``bronze.ingest_log``."""
+    """Append + aggregate on ``bronze.ingest_log``."""
 
     async def record_attempt(
         self,
@@ -80,3 +93,37 @@ class IngestLogRepository:
                 user_agent=user_agent,
             )
         )
+
+    async def get_stats(self, session: AsyncSession) -> IngestStats:
+        """Return aggregate statistics over all ingest log entries."""
+        stats = IngestStats()
+
+        # Total / success / failure counts
+        total_result = await session.execute(
+            select(func.count()).select_from(IngestLogORM)
+        )
+        stats.total_attempts = int(total_result.scalar_one() or 0)
+
+        success_result = await session.execute(
+            select(func.count()).select_from(IngestLogORM).where(
+                IngestLogORM.http_status == 200
+            )
+        )
+        stats.total_successes = int(success_result.scalar_one() or 0)
+        stats.total_failures = stats.total_attempts - stats.total_successes
+
+        # Failures grouped by error class
+        fc_result = await session.execute(
+            select(IngestLogORM.failure_class, func.count())
+            .where(IngestLogORM.failure_class.is_not(None))
+            .group_by(IngestLogORM.failure_class)
+        )
+        stats.failures_by_class = {row[0]: int(row[1]) for row in fc_result.all()}
+
+        # Attempts grouped by endpoint
+        ep_result = await session.execute(
+            select(IngestLogORM.endpoint, func.count()).group_by(IngestLogORM.endpoint)
+        )
+        stats.attempts_by_endpoint = {row[0]: int(row[1]) for row in ep_result.all()}
+
+        return stats

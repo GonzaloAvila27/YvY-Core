@@ -28,9 +28,11 @@ Design notes
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import secrets
+import shutil
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -48,6 +50,7 @@ from yvy_server.infrastructure.db import (
 )
 from yvy_server.infrastructure.persistence import (
     CredentialRepository,
+    EdgeReleaseRepository,
     StationRepository,
 )
 from yvy_server.logging_setup import setup_logging
@@ -234,6 +237,178 @@ async def _persist_station(
                     reason=None,
                 ),
             )
+    finally:
+        await dispose_engine(engine)
+
+
+# ─── publish-update ─────────────────────────────────────────────────────
+
+
+@app.command("publish-update")
+def publish_update(
+    file: Path = typer.Option(
+        ...,
+        "--file",
+        "-f",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        help="Path to the .tar.gz package to publish.",
+    ),
+    edge_version: str = typer.Option(
+        ...,
+        "--version",
+        "-v",
+        help="Semver version string for this release (e.g. '0.9.3').",
+    ),
+    min_edge_version: str = typer.Option(
+        "0.0.0",
+        "--min-edge-version",
+        help="Minimum Edge version from which this update can be safely applied.",
+    ),
+    notes: Optional[str] = typer.Option(
+        None,
+        "--notes",
+        "-n",
+        help="Human-readable release notes (shown in the Edge UI).",
+    ),
+    releases_dir: Optional[Path] = typer.Option(
+        None,
+        "--releases-dir",
+        help=(
+            "Override the releases directory. Defaults to settings.releases_dir "
+            "(YVY_RELEASES_DIR env var or 'data/releases')."
+        ),
+    ),
+) -> None:
+    """Publish a new Edge software release.
+
+    1. Computes SHA-256 of ``--file``.
+    2. Copies the file to the releases directory.
+    3. Inserts a row in ``public.edge_releases``.
+    4. Atomically increments ``public.sync_state.sync_version``.
+
+    The server's running instance caches ``sync_version`` at startup;
+    restart the server after publishing so ingest piggyback headers
+    reflect the new value immediately.
+
+    Exits with code 0 on success, 1 on any error.
+    """
+    settings = get_settings()
+    setup_logging(settings.log_level, stream=sys.stderr)
+    log = logging.getLogger("yvy.cli")
+
+    dest_dir = Path(releases_dir) if releases_dir else Path(settings.releases_dir)
+    dest_dir.mkdir(parents=True, exist_ok=True)
+
+    # 1. Compute SHA-256
+    sha256 = _sha256_file(file)
+    size_bytes = file.stat().st_size
+
+    # 2. Determine destination filename
+    dest_filename = file.name
+    dest_path = dest_dir / dest_filename
+
+    if dest_path.exists():
+        typer.secho(
+            f"WARNING: {dest_path} already exists. Overwriting.",
+            fg="yellow",
+            err=True,
+        )
+
+    # 3. Copy file to releases dir (no-op if source == dest)
+    if file.resolve() != dest_path.resolve():
+        shutil.copy2(str(file), str(dest_path))
+        typer.secho(f"Copied {file} → {dest_path}", fg="green", err=True)
+    else:
+        typer.secho(f"File already at destination: {dest_path}", fg="green", err=True)
+
+    # 4. Persist release in DB
+    now = datetime.now(UTC)
+    try:
+        asyncio.run(
+            _persist_release(
+                settings=settings,
+                edge_version=edge_version,
+                package_filename=dest_filename,
+                package_sha256=sha256,
+                package_size_bytes=size_bytes,
+                min_edge_version=min_edge_version,
+                notes=notes,
+                released_at=now,
+            )
+        )
+    except Exception as err:  # noqa: BLE001 — top-level CLI handler
+        log.exception(
+            "publish_update failed",
+            extra={"edge_version": edge_version, "filename": dest_filename},
+        )
+        typer.secho(f"ERROR: {err}", fg="red", err=True)
+        raise typer.Exit(code=1) from err
+
+    result = {
+        "edge_version": edge_version,
+        "package_filename": dest_filename,
+        "package_sha256": sha256,
+        "package_size_bytes": size_bytes,
+        "min_edge_version": min_edge_version,
+        "released_at_utc": now.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+        "notes": notes,
+    }
+    typer.echo(json.dumps(result, indent=2))
+
+    log.info(
+        "update.published",
+        extra={
+            "version": edge_version,
+            "released_at": now.isoformat(),
+            "sha256": sha256,
+            "size_bytes": size_bytes,
+            "min_edge_version": min_edge_version,
+        },
+    )
+
+
+def _sha256_file(path: Path) -> str:
+    """Return the hex SHA-256 of a file, reading in 1 MiB chunks."""
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        while chunk := f.read(1024 * 1024):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+async def _persist_release(
+    *,
+    settings,  # Settings — avoid import cycle in type hint
+    edge_version: str,
+    package_filename: str,
+    package_sha256: str,
+    package_size_bytes: int,
+    min_edge_version: str,
+    notes: Optional[str],
+    released_at: datetime,
+) -> None:
+    """Open an engine, insert the release + bump sync_version atomically, dispose."""
+    engine, factory = create_engine_and_session_factory(settings)
+    try:
+        async with factory() as session, session.begin():
+            _, new_sync = await EdgeReleaseRepository().publish_release(
+                session,
+                edge_version=edge_version,
+                package_filename=package_filename,
+                package_sha256=package_sha256,
+                package_size_bytes=package_size_bytes,
+                min_edge_version=min_edge_version,
+                notes=notes,
+                released_at=released_at,
+            )
+        typer.secho(
+            f"Release registered. New sync_version={new_sync}",
+            fg="green",
+            err=True,
+        )
     finally:
         await dispose_engine(engine)
 

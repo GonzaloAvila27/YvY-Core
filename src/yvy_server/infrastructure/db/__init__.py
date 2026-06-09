@@ -8,6 +8,7 @@ from yvy_server.infrastructure.db.engine import (
 )
 from yvy_server.infrastructure.db.models import (
     Base,
+    EdgeReleaseORM,
     EmpiricalEventRawORM,
     EmpiricalObservationRawORM,
     IngestFailureORM,
@@ -15,10 +16,12 @@ from yvy_server.infrastructure.db.models import (
     SensorRawORM,
     StationCredentialORM,
     StationORM,
+    SyncStateORM,
 )
 
 __all__ = [
     "Base",
+    "EdgeReleaseORM",
     "EmpiricalEventRawORM",
     "EmpiricalObservationRawORM",
     "IngestFailureORM",
@@ -27,6 +30,7 @@ __all__ = [
     "SessionFactory",
     "StationCredentialORM",
     "StationORM",
+    "SyncStateORM",
     "create_engine_and_session_factory",
     "dispose_engine",
     "get_session",
