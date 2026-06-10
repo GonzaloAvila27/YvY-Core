@@ -27,7 +27,7 @@ from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 # ─── Payloads (post-HMAC validation, schema_version=1.0) ────────────────
@@ -242,6 +242,12 @@ class AdminFailureItem(BaseModel):
     received_from_ip: str | None
     # Expose the raw envelope so the admin can inspect it
     raw_envelope: dict[str, Any]
+
+    @field_validator("received_from_ip", mode="before")
+    @classmethod
+    def _coerce_ip(cls, v: object) -> str | None:
+        # asyncpg returns INET columns as IPv4Address/IPv6Address objects
+        return None if v is None else str(v)
 
 
 class AdminFailuresResponse(BaseModel):
