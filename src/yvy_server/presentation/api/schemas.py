@@ -53,7 +53,9 @@ class EmpiricalObservationPayload(BaseModel):
 
     # Required
     observed_at_utc: datetime
-    observer_id: str = Field(min_length=1, max_length=100)
+    # observer_id es opcional temporalmente: el Edge v1.x manda created_by_user_id (int)
+    # en su lugar. Se normaliza en Fase 10 cuando el Edge actualice el payload.
+    observer_id: str | None = Field(default=None, min_length=1, max_length=100)
 
     # Quantitative (all optional — Fase 8.5a decision)
     rain_mm: int | None = Field(default=None, ge=0)
