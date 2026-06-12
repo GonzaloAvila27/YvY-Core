@@ -63,6 +63,7 @@ class IngestFailure:
     http_status: int
     error_class: str  # "SCHEMA" | "AUTH" | "CLOCK" | "SERVER"
     error_message: str
+    skew_seconds: int | None = None
 
 
 IngestOutcome = IngestSuccess | IngestFailure
@@ -157,6 +158,7 @@ class _BaseIngestUseCase:
                 http_status=type(err).http_status,
                 error_class=type(err).error_class,
                 error_message=str(err),
+                skew_seconds=err.skew_seconds,
             )
 
         # ─── 2. Payload typing (post-HMAC) ──────────────────────────────

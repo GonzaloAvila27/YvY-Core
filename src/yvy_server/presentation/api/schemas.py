@@ -58,21 +58,21 @@ class EmpiricalObservationPayload(BaseModel):
     observer_id: str | None = Field(default=None, min_length=1, max_length=100)
 
     # Quantitative (all optional — Fase 8.5a decision)
-    rain_mm: int | None = Field(default=None, ge=0)
-    temp_c_out: float | None = None
-    hum_pct_perceived: int | None = Field(default=None, ge=0, le=100)
+    rain_mm: float | None = Field(default=None, ge=0)
+    temp_c: float | None = None
+    humidity_percept: str | None = None
     wind_beaufort: int | None = Field(default=None, ge=0, le=12)
-    wind_dir_8pt: str | None = None
+    wind_direction: str | None = None
 
     # Qualitative
-    cloud_cover_pct: int | None = Field(default=None, ge=0, le=100)
+    sky_coverage_pct: int | None = Field(default=None, ge=0, le=100)
     cloud_type: str | None = None
     soil_state: str | None = None
     visibility: str | None = None
     precipitation_now: str | None = None
     phenology_notes: str | None = None
-    cattle_state: str | None = None
-    cattle_notes: str | None = None
+    livestock_state: str | None = None
+    livestock_notes: str | None = None
     general_notes: str | None = None
 
 
@@ -122,10 +122,15 @@ class IngestErrorResponse(BaseModel):
     The ``error_class`` matches the codes in the architecture doc §2.5:
     the edge agent uses it to decide retry behavior (SCHEMA → DLQ
     immediately, AUTH → latch, CLOCK → recalibrate, SERVER → backoff).
+
+    ``skew_seconds`` is populated only for CLOCK errors — it is the
+    absolute clock difference measured by the server (in seconds). The
+    edge agent reads this field for diagnostic logging.
     """
 
     error: str
     error_class: Literal["SCHEMA", "AUTH", "CLOCK", "SERVER"]
+    skew_seconds: int | None = None
 
 
 # ─── Sensor reading payload (POST /api/v1/ingest/sensor) ────────────────

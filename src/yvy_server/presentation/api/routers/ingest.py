@@ -114,6 +114,7 @@ async def _run_ingest(
         error_class=outcome.error_class,  # type: ignore[arg-type]
         error_message=outcome.error_message,
         headers=extra_headers,
+        skew_seconds=outcome.skew_seconds,
     )
 
 
@@ -212,10 +213,12 @@ def _error_response(
     error_class: str,
     error_message: str,
     headers: dict[str, str] | None = None,
+    skew_seconds: int | None = None,
 ) -> JSONResponse:
     body = IngestErrorResponse(
         error=error_message,
         error_class=error_class,  # type: ignore[arg-type]
+        skew_seconds=skew_seconds,
     )
     return JSONResponse(
         status_code=status_code,
