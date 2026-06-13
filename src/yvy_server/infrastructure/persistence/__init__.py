@@ -10,6 +10,7 @@ from yvy_server.infrastructure.persistence.ingest_log_repository import (
     IngestLogRepository,
     IngestStats,
 )
+from yvy_server.infrastructure.persistence.public_read_repository import PublicReadRepository
 from yvy_server.infrastructure.persistence.station_repository import StationRepository
 
 __all__ = [
@@ -19,5 +20,6 @@ __all__ = [
     "IngestFailuresRepository",
     "IngestLogRepository",
     "IngestStats",
+    "PublicReadRepository",
     "StationRepository",
 ]

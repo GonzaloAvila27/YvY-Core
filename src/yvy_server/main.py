@@ -60,6 +60,7 @@ from yvy_server.infrastructure.persistence import (
     EdgeReleaseRepository,
     IngestFailuresRepository,
     IngestLogRepository,
+    PublicReadRepository,
     StationRepository,
 )
 from yvy_server.infrastructure.publisher import PostgresDirectPublisher
@@ -96,6 +97,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     log_repo = IngestLogRepository()
     failures_repo = IngestFailuresRepository()
     edge_release_repo = EdgeReleaseRepository()
+    public_read_repo = PublicReadRepository()
 
     # ─── Application services ───────────────────────────────────────────
     envelope_validator = EnvelopeValidator(
@@ -135,6 +137,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.station_repo = station_repo
     app.state.credential_repo = credential_repo
     app.state.edge_release_repo = edge_release_repo
+    app.state.public_read_repo = public_read_repo
     app.state.ingest_observation_use_case = ingest_observation_use_case
     app.state.ingest_sensor_use_case = ingest_sensor_use_case
     app.state.ingest_event_use_case = ingest_event_use_case

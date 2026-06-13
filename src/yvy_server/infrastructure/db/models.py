@@ -24,11 +24,13 @@ from uuid import UUID as PyUUID
 from sqlalchemy import (
     REAL,
     BigInteger,
+    Boolean,
     CheckConstraint,
     ForeignKey,
     Index,
     Integer,
     MetaData,
+    Numeric,
     Text,
     UniqueConstraint,
     text,
@@ -75,6 +77,13 @@ class StationORM(Base):
     deactivated_at: Mapped[datetime | None] = mapped_column(
         TIMESTAMP(timezone=True), nullable=True
     )
+    # C10 — public layer fields (added by migration 003)
+    code: Mapped[str | None] = mapped_column(Text, nullable=True, unique=True)
+    locality: Mapped[str | None] = mapped_column(Text, nullable=True)
+    province: Mapped[str | None] = mapped_column(Text, nullable=True, server_default="Misiones")
+    latitude: Mapped[float | None] = mapped_column(Numeric(9, 6), nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Numeric(9, 6), nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
 
 
 # ─── public.station_credentials ──────────────────────────────────────────
