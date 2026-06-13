@@ -1,9 +1,16 @@
 # YVY · RUNBOOK · Actualización Fase 9.2 + Referencia de Endpoints
 
-**Versión:** 1.1  
-**Fecha:** 12-Jun-2026 (v1.0: 08-Jun-2026)  
+**Versión:** 1.2  
+**Fecha:** 12-Jun-2026 (v1.1: 12-Jun-2026 · v1.0: 08-Jun-2026)  
 **Aplica a:** servidor Debian 12 con Fase 9.1 ya deployada (`RUNBOOK_DEPLOY_CODE.md` aplicado).  
-**Tiempo estimado:** 20–30 minutos.
+**Tiempo estimado:** 20–30 minutos (+ 10 min para TLS si es primera vez).
+
+### Cambios v1.2
+
+| Fix | Detalle |
+|---|---|
+| nginx + TLS (Let's Encrypt) | `docker-compose.yml` incluye servicio `nginx`; certificado gestionado con certbot en el host |
+| Smoke tests | Actualizados a `https://edge.yvyedge.com` una vez que nginx esté activo |
 
 ### Cambios v1.1
 
@@ -12,12 +19,6 @@
 | `IngestErrorResponse` + `skew_seconds` | Errores CLOCK (422) ahora incluyen `skew_seconds: int` en el body |
 | `EmpiricalObservationPayload` field names | Renombres: `temp_c_out`→`temp_c`, `hum_pct_perceived`→`humidity_percept`, `wind_dir_8pt`→`wind_direction`, `cloud_cover_pct`→`sky_coverage_pct`, `cattle_state/notes`→`livestock_state/notes`, `rain_mm` ahora `float` |
 | CHANGELOG.md | Creado en raíz del repo con audit de compatibilidad Edge/Core |
-| Smoke tests | Corregidos para usar HTTP puerto 8000 (nginx/TLS aún no deployado) |
-
-> **Nota de infraestructura:** el `docker-compose.yml` actual expone solo `app:8000` y `postgres:5432`.
-> El bloque nginx de las secciones 2–3 corresponde a un despliegue futuro con TLS. Hasta que nginx
-> se agregue al compose, todos los accesos son `http://<IP_LAN>:8000`. El Edge tiene configurado
-> `sync_server_url` con esta URL en su `app_config`.
 
 ---
 
@@ -202,31 +203,140 @@ docker compose exec postgres psql -U yvyserver -d yvy -c \
 
 ---
 
+## 5b. Activar TLS con Let's Encrypt (primera vez)
+
+> **Prerrequisito:** `edge.yvyedge.com` resuelve a la IP pública del servidor.
+> Ejecutar desde el servidor Debian vía SSH.
+
+### 5b.1 Abrir puertos en el firewall del host
+
+```bash
+ufw allow 80/tcp   # HTTP + ACME challenge
+ufw allow 443/tcp  # HTTPS
+ufw status
+# Debe mostrar 80 y 443 ALLOW
+```
+
+### 5b.2 Obtener el certificado (antes de levantar nginx)
+
+```bash
+# Instalar certbot si no está
+apt install -y certbot
+
+# Obtener cert con standalone (certbot levanta su propio servidor HTTP en :80)
+# El container nginx NO debe estar corriendo todavía
+certbot certonly --standalone -d edge.yvyedge.com \
+    --email admin@yvyedge.com \
+    --agree-tos \
+    --no-eff-email
+
+# Verificar que los archivos existen
+ls /etc/letsencrypt/live/edge.yvyedge.com/
+# fullchain.pem  privkey.pem  cert.pem  chain.pem
+```
+
+### 5b.3 Levantar nginx
+
+```bash
+cd /opt/yvy-server
+
+# Pull del código nuevo (nginx.conf y docker-compose.yml actualizados)
+git pull
+
+# Verificar sintaxis de nginx.conf antes de levantar
+docker run --rm \
+    -v $(pwd)/nginx/nginx.conf:/etc/nginx/nginx.conf:ro \
+    nginx:1.27-alpine nginx -t
+# Esperado: syntax is ok / test is successful
+
+# Levantar nginx (app y postgres ya están corriendo)
+docker compose up -d nginx
+
+# Verificar que levantó
+docker compose ps nginx
+docker compose logs nginx --tail 20
+```
+
+### 5b.4 Smoke rápido de TLS
+
+```bash
+# HTTPS directo
+curl -sf https://edge.yvyedge.com/api/v1/healthz && echo "TLS OK"
+
+# Verificar que HTTP redirige a HTTPS
+curl -si http://edge.yvyedge.com/api/v1/healthz | head -3
+# Esperado: HTTP/1.1 301 Moved Permanently
+
+# Verificar certificado
+curl -sv https://edge.yvyedge.com/api/v1/healthz 2>&1 | grep -E "subject|expire|SSL"
+```
+
+### 5b.5 Renovación automática
+
+Let's Encrypt emite certs válidos por 90 días. Certbot instala un timer systemd
+que renueva automáticamente. Solo hay que agregar el hook para recargar nginx:
+
+```bash
+mkdir -p /etc/letsencrypt/renewal-hooks/deploy
+
+cat > /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh << 'EOF'
+#!/bin/bash
+cd /opt/yvy-server
+docker compose exec nginx nginx -s reload
+echo "[certbot-hook] nginx recargado $(date -Iseconds)"
+EOF
+
+chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+
+# Verificar timer de renovación
+systemctl status certbot.timer
+# Testear renovación en dry-run
+certbot renew --dry-run
+# Esperado: "No renewals were attempted" o "Congratulations, all simulated..."
+```
+
+### 5b.6 Actualizar sync_server_url en el Edge IEA
+
+Una vez que TLS está activo, actualizar la URL en la Raspberry Pi:
+
+```bash
+# En la Raspberry Pi (Edge IEA)
+yvy set-server-url https://edge.yvyedge.com
+# O directamente en la DB del Edge:
+# sqlite3 data/yvy.db "UPDATE app_config SET value='https://edge.yvyedge.com' WHERE key='sync_server_url';"
+
+# Verificar conectividad
+yvy diagnose
+```
+
+---
+
 ## 6. Smoke tests Fase 9.2
 
 ### 6.0 Prerrequisitos — verificar conectividad antes de cualquier smoke
 
 ```bash
-# ─── SETUP ────────────────────────────────────────────────────────────────
-# El servidor actualmente NO tiene nginx ni TLS. Acceder directo a puerto 8000.
 ADMIN_TOKEN=$(cat /opt/yvy-server/secrets/yvy_admin_token.txt)
-IP_LAN="<IP_LAN>"          # IP de la máquina donde corre Docker
-BASE="http://$IP_LAN:8000" # HTTP directo — sin nginx todavía
 
-# Verificar que las variables están seteadas
+# Con nginx + TLS activo (sección 5b completada):
+BASE="https://edge.yvyedge.com"
+
+# Sin nginx (acceso directo al container, solo desde el propio servidor):
+# BASE="http://localhost:8000"
+
 echo "BASE='$BASE'"
 echo "TOKEN='${ADMIN_TOKEN:0:8}...'"
 
-# Liveness público (sin auth) — si esto falla, el container app no está up
+# Liveness público
 curl -sf "$BASE/api/v1/healthz" && echo "OK" || echo "FALLO"
 # Esperado: {"status":"ok"}  OK
 ```
 
-> **Si curl falla con `connection refused`:** el container `app` no está up.
-> Verificar con `docker compose ps` y revisar logs con `docker compose logs app --tail 50`.
+> **Si falla con `Failed to connect ... port 443`:** nginx no está corriendo.
+> Verificar con `docker compose ps nginx` y ver sección 5b.3.
 >
-> **El smoke NO usa `https://` ni dominio** mientras nginx no esté en el compose.
-> El Edge IEA también conecta por HTTP:8000 (su `sync_server_url` en `app_config`).
+> **Si falla con `connection refused` en puerto 8000`:** el container `app` no está up.
+> Ver `docker compose logs app --tail 50`.
 
 ### 6.1 Admin endpoints (requieren Bearer token)
 
@@ -471,4 +581,4 @@ UNION ALL SELECT 'failures_dlq', COUNT(*) FROM bronze.ingest_failures;"
 
 ---
 
-*Documento v1.1 · 12-Jun-2026 · v1.0: 08-Jun-2026 · Continúa en Fase 9.3 (nginx multi-subdominio + smoke E2E) y C10 (capa SQL de agregación pública).*
+*Documento v1.2 · 12-Jun-2026 · Continúa en Fase 9.3 (multi-subdominio + smoke E2E) y C10 (capa SQL de agregación pública).*
