@@ -119,7 +119,7 @@ Ninguna al momento de generar v2.0. Si surgen durante implementación, agregar a
 
 | Fase | Nombre | Estado | Bloqueante de Web |
 |---|---|---|---|
-| C10 | Capa de agregación SQL + views | Pendiente | W2 |
+| C10 | Capa de agregación SQL + views | ✅ Cerrada 12-Jun | W2 |
 | C11 | Subdominio `api.yvyedge.com` + endpoints `/public/network` y `/public/stations` | Pendiente | W2 |
 | C12 | Endpoints `/public/metrics` y `/public/dashboard` (provincial) | Pendiente | W3 |
 | C13 | Variables derivadas (VPD, dewpoint) | Pendiente | W3 |
@@ -693,7 +693,7 @@ Lighthouse Performance ≥ 90, Accessibility ≥ 95, Best Practices ≥ 95, SEO 
 
 # Fase C10 — Capa de agregación SQL + views
 
-**Estado:** Pendiente
+**Estado:** ✅ Cerrada — 12-Jun-2026
 **Bloqueante de:** Fase W2
 **Continúa después de:** Fase 9.3 del plan principal Core.
 
@@ -750,11 +750,11 @@ Capa SQL de agregación lista. Las views responden en < 100ms con datos sintéti
 
 ## Tareas concretas
 
-- [ ] Migración Alembic con campos adicionales en `station` y las dos views.
-- [ ] Seed de las 18 estaciones con coordenadas.
-- [ ] `PublicReadRepository` en infrastructure.
-- [ ] Value Objects en `domain/public/`.
-- [ ] Tests de migración + tests del repo con DB real.
+- [x] Migración Alembic con campos adicionales en `station` y las dos views.
+- [x] Seed de las 18 estaciones con coordenadas.
+- [x] `PublicReadRepository` en infrastructure.
+- [x] Value Objects en `domain/public/`.
+- [ ] Tests de migración + tests del repo con DB real. *(pendiente — requiere DB de test)*
 - [ ] `docs/architecture/public_views.md` con queries documentadas.
 - [ ] `docs/phases/PHASE-C10-aggregation.md`.
 
@@ -765,6 +765,13 @@ Capa SQL de agregación lista. Las views responden en < 100ms con datos sintéti
 ## Notas de implementación
 
 El cálculo de `uptime_30d` es no trivial. Aproximación: % de buckets de 5min de los últimos 30 días con al menos 1 sync de cualquier estación. Implementar como CTE con `generate_series('2026-05-08'::timestamp, '2026-06-08'::timestamp, '5 minutes'::interval)`. Coordenadas pueden ajustarse con UPDATE simple después sin migración.
+
+**Implementación real (12-Jun-2026):**
+- Migración: `alembic/versions/003_c10_public_views.py`. `code` nullable en migración (no NOT NULL) para compatibilidad con stations pre-existentes sin código.
+- Seed: coordenadas aproximadas para IEA-01 a IEA-06 y IEA-08 a IEA-18. IEA-07 Garupá exacta (`-27.4869, -55.8276`). Actualizar con coordenadas reales al desplegar cada nodo.
+- `v_station_summary`: `last_values` extrae del payload JSONB de `bronze.sensor_raw`. Cast de strings pywws a numeric inline en SQL.
+- `PublicReadRepository`: 4 métodos — `get_network_status`, `get_station_summaries`, `get_station_by_uuid`, `get_station_by_code`. Wired en `app.state.public_read_repo`.
+- Commit: `dd81115` en branch `plan_fases_api`.
 
 ## Log de consultas
 
