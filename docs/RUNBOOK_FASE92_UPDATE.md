@@ -12,6 +12,12 @@
 | `IngestErrorResponse` + `skew_seconds` | Errores CLOCK (422) ahora incluyen `skew_seconds: int` en el body |
 | `EmpiricalObservationPayload` field names | Renombres: `temp_c_out`→`temp_c`, `hum_pct_perceived`→`humidity_percept`, `wind_dir_8pt`→`wind_direction`, `cloud_cover_pct`→`sky_coverage_pct`, `cattle_state/notes`→`livestock_state/notes`, `rain_mm` ahora `float` |
 | CHANGELOG.md | Creado en raíz del repo con audit de compatibilidad Edge/Core |
+| Smoke tests | Corregidos para usar HTTP puerto 8000 (nginx/TLS aún no deployado) |
+
+> **Nota de infraestructura:** el `docker-compose.yml` actual expone solo `app:8000` y `postgres:5432`.
+> El bloque nginx de las secciones 2–3 corresponde a un despliegue futuro con TLS. Hasta que nginx
+> se agregue al compose, todos los accesos son `http://<IP_LAN>:8000`. El Edge tiene configurado
+> `sync_server_url` con esta URL en su `app_config`.
 
 ---
 
@@ -201,44 +207,46 @@ docker compose exec postgres psql -U yvyserver -d yvy -c \
 ### 6.0 Prerrequisitos — verificar conectividad antes de cualquier smoke
 
 ```bash
+# ─── SETUP ────────────────────────────────────────────────────────────────
+# El servidor actualmente NO tiene nginx ni TLS. Acceder directo a puerto 8000.
 ADMIN_TOKEN=$(cat /opt/yvy-server/secrets/yvy_admin_token.txt)
-BASE="https://yvy-edge.<dominio>.edu.ar"   # ← reemplazar <dominio> con el real
+IP_LAN="<IP_LAN>"          # IP de la máquina donde corre Docker
+BASE="http://$IP_LAN:8000" # HTTP directo — sin nginx todavía
 
 # Verificar que las variables están seteadas
 echo "BASE='$BASE'"
-echo "TOKEN='${ADMIN_TOKEN:0:8}...'"   # solo los primeros 8 chars
+echo "TOKEN='${ADMIN_TOKEN:0:8}...'"
 
-# Liveness público (sin auth) — si esto falla, el server no está up
-curl -sf "$BASE/api/v1/healthz" && echo "OK" || echo "FALLO — server no responde"
+# Liveness público (sin auth) — si esto falla, el container app no está up
+curl -sf "$BASE/api/v1/healthz" && echo "OK" || echo "FALLO"
 # Esperado: {"status":"ok"}  OK
 ```
 
-> **Si `curl -s` devuelve vacío**, usar `curl -v` para ver el error real
-> (SSL, DNS, timeout, nginx 502, etc.). El flag `-s` silencia errores de red.
+> **Si curl falla con `connection refused`:** el container `app` no está up.
+> Verificar con `docker compose ps` y revisar logs con `docker compose logs app --tail 50`.
+>
+> **El smoke NO usa `https://` ni dominio** mientras nginx no esté en el compose.
+> El Edge IEA también conecta por HTTP:8000 (su `sync_server_url` en `app_config`).
 
 ### 6.1 Admin endpoints (requieren Bearer token)
 
 ```bash
-# Admin stats — usar -f para que curl falle si el HTTP status es 4xx/5xx
+# Admin stats
 curl -sf -H "Authorization: Bearer $ADMIN_TOKEN" \
     "$BASE/api/v1/admin/stats" | python3 -m json.tool
-# Esperado: JSON con total_attempts, total_successes, total_failures, etc.
+# Esperado: {"total_attempts":N,"total_successes":N,"total_failures":N,...}
 
-# Admin failures (DLQ vacío en instalación limpia)
+# Admin failures (DLQ)
 curl -sf -H "Authorization: Bearer $ADMIN_TOKEN" \
     "$BASE/api/v1/admin/failures" | python3 -m json.tool
-# Esperado: {"total": 0, "items": []}
+# Esperado: {"total": 0, "items": []}  (vacío en instalación limpia)
 ```
-
-> **Error `Expecting value: line 1 column 1 (char 0)`**: el body llegó vacío.
-> Causas comunes: server no responde (usar `-v` para ver), `ADMIN_TOKEN` vacío,
-> o nginx devuelve HTML. Diagnóstico: `curl -v -H "Authorization: Bearer $ADMIN_TOKEN" "$BASE/api/v1/admin/stats"`
 
 ### 6.2 Edge sync sin auth (debe dar 401)
 
 ```bash
-curl -si "$BASE/api/v1/edge/sync" | head -20
-# Esperado: HTTP 401 + body con "error_class":"AUTH"
+curl -si "$BASE/api/v1/edge/sync" | head -5
+# Esperado: HTTP/1.1 401  +  {"detail":{"error":"...","error_class":"AUTH"}}
 ```
 
 ### 6.3 Header X-Server-Sync-Version en ingest
@@ -248,34 +256,26 @@ curl -si -X POST "$BASE/api/v1/ingest/observation" \
     -H "Content-Type: application/json" \
     -d '{"test": true}' | grep -i "x-server-sync-version"
 # Esperado: x-server-sync-version: 0
-# (0 porque aún no se publicó ningún release)
 ```
 
 ### 6.4 CLOCK error incluye skew_seconds (v1.1+)
 
-```bash
-# Enviar un envelope con sent_at_utc muy desincronizado — debe devolver skew_seconds
-# (solo para verificar el fix de compatibilidad Edge/Core)
-curl -sf -X POST "$BASE/api/v1/ingest/observation" \
-    -H "Content-Type: application/json" \
-    -d '{"schema_version":"1.0","event_id":"00000000-0000-0000-0000-000000000001",
-         "station_uuid":"00000000-0000-0000-0000-000000000002","key_version":1,
-         "sent_at_utc":"2020-01-01T00:00:00.000Z","nonce":"aabbcc",
-         "payload":{},"signature":"invalid"}' | python3 -m json.tool
-# Esperado: {"error":"...","error_class":"AUTH",...}
-# (AUTH porque la firma es inválida — se valida antes que el clock)
-# Con firma válida y clock desincronizado el body incluiría: "skew_seconds": <N>
+Un envelope con firma inválida devuelve AUTH (la firma se verifica antes que el clock).
+Con firma válida y timestamp muy desincronizado el body incluye `"skew_seconds": <N>`.
+Verificar en los logs del Edge cuando ocurra un error CLOCK real:
+```
+sync_agent.clock_error  skew_seconds=<N>   ← antes era null, ahora tiene valor
 ```
 
 ### 6.5 [VERIFICAR]
 
-- [ ] `GET /healthz` responde `{"status":"ok"}` (prerrequisito)
-- [ ] Tablas `sync_state` y `edge_releases` existen
-- [ ] `GET /admin/stats` responde 200 con conteos correctos
-- [ ] `GET /admin/failures` responde 200 con `{"total":0,...}`
-- [ ] `GET /edge/sync` sin auth devuelve 401
-- [ ] Header `X-Server-Sync-Version: 0` presente en respuestas de ingest
-- [ ] Errores CLOCK contienen `skew_seconds` en el body (v1.1+)
+- [ ] `GET /healthz` responde `{"status":"ok"}`
+- [ ] Tablas `sync_state` y `edge_releases` existen en postgres
+- [ ] `GET /admin/stats` responde 200 con conteos
+- [ ] `GET /admin/failures` responde 200 con `{"total":N,...}`
+- [ ] `GET /edge/sync` sin auth → 401
+- [ ] Header `X-Server-Sync-Version` presente en respuestas de ingest
+- [ ] Logs del Edge muestran `skew_seconds` con valor numérico en errores CLOCK (v1.1+)
 
 ---
 
