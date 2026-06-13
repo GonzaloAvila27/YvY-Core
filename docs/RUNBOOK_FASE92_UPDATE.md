@@ -582,3 +582,44 @@ UNION ALL SELECT 'failures_dlq', COUNT(*) FROM bronze.ingest_failures;"
 ---
 
 *Documento v1.2 · 12-Jun-2026 · Continúa en Fase 9.3 (multi-subdominio + smoke E2E) y C10 (capa SQL de agregación pública).*
+
+---
+
+## Rollback (si algo falla)
+
+### Si falla git pull (conflictos)
+```bash
+git stash  # o git reset --hard origin/main si no hay cambios importantes
+git pull
+```
+
+### Si falla nginx -t
+```bash
+nano nginx.conf  # corregir error señalado
+docker compose exec nginx nginx -t  # reverificar
+# NO recargar nginx hasta que sintaxis sea ok
+```
+
+### Si falla rebuild
+```bash
+# Imagen anterior sigue funcionando (no fue reemplazada todavía)
+git checkout <commit_anterior>
+docker compose build yvy-api
+docker compose up -d --no-deps yvy-api
+```
+
+### Si falla migración
+```bash
+# Restaurar backup
+./scripts/restore_postgres.sh /path/to/backup.sql
+# Investigar qué pasó en logs antes de reintentar
+docker compose logs yvy-api | grep -i "alembic\|migrat\|error"
+```
+
+### Si fallan smoke tests
+```bash
+# El sistema está corriendo pero con bug
+# Decidir: rollback completo (git checkout + rebuild + restore DB)
+# o hotfix (commit nuevo que corrija)
+# Documentar qué falló para evitarlo en futuras updates
+```
