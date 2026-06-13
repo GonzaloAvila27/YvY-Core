@@ -1,9 +1,17 @@
 # YVY · RUNBOOK · Actualización Fase 9.2 + Referencia de Endpoints
 
-**Versión:** 1.0  
-**Fecha:** 08-Jun-2026  
+**Versión:** 1.1  
+**Fecha:** 12-Jun-2026 (v1.0: 08-Jun-2026)  
 **Aplica a:** servidor Debian 12 con Fase 9.1 ya deployada (`RUNBOOK_DEPLOY_CODE.md` aplicado).  
 **Tiempo estimado:** 20–30 minutos.
+
+### Cambios v1.1
+
+| Fix | Detalle |
+|---|---|
+| `IngestErrorResponse` + `skew_seconds` | Errores CLOCK (422) ahora incluyen `skew_seconds: int` en el body |
+| `EmpiricalObservationPayload` field names | Renombres: `temp_c_out`→`temp_c`, `hum_pct_perceived`→`humidity_percept`, `wind_dir_8pt`→`wind_direction`, `cloud_cover_pct`→`sky_coverage_pct`, `cattle_state/notes`→`livestock_state/notes`, `rain_mm` ahora `float` |
+| CHANGELOG.md | Creado en raíz del repo con audit de compatibilidad Edge/Core |
 
 ---
 
@@ -190,47 +198,84 @@ docker compose exec postgres psql -U yvyserver -d yvy -c \
 
 ## 6. Smoke tests Fase 9.2
 
-### 6.1 Nuevos endpoints de ingest
+### 6.0 Prerrequisitos — verificar conectividad antes de cualquier smoke
 
 ```bash
 ADMIN_TOKEN=$(cat /opt/yvy-server/secrets/yvy_admin_token.txt)
-BASE="https://yvy-edge.<dominio>.edu.ar"
+BASE="https://yvy-edge.<dominio>.edu.ar"   # ← reemplazar <dominio> con el real
 
-# Admin stats
-curl -s -H "Authorization: Bearer $ADMIN_TOKEN" \
+# Verificar que las variables están seteadas
+echo "BASE='$BASE'"
+echo "TOKEN='${ADMIN_TOKEN:0:8}...'"   # solo los primeros 8 chars
+
+# Liveness público (sin auth) — si esto falla, el server no está up
+curl -sf "$BASE/api/v1/healthz" && echo "OK" || echo "FALLO — server no responde"
+# Esperado: {"status":"ok"}  OK
+```
+
+> **Si `curl -s` devuelve vacío**, usar `curl -v` para ver el error real
+> (SSL, DNS, timeout, nginx 502, etc.). El flag `-s` silencia errores de red.
+
+### 6.1 Admin endpoints (requieren Bearer token)
+
+```bash
+# Admin stats — usar -f para que curl falle si el HTTP status es 4xx/5xx
+curl -sf -H "Authorization: Bearer $ADMIN_TOKEN" \
     "$BASE/api/v1/admin/stats" | python3 -m json.tool
-# Esperado: JSON con total_attempts, total_successes, etc.
+# Esperado: JSON con total_attempts, total_successes, total_failures, etc.
 
 # Admin failures (DLQ vacío en instalación limpia)
-curl -s -H "Authorization: Bearer $ADMIN_TOKEN" \
+curl -sf -H "Authorization: Bearer $ADMIN_TOKEN" \
     "$BASE/api/v1/admin/failures" | python3 -m json.tool
 # Esperado: {"total": 0, "items": []}
 ```
 
+> **Error `Expecting value: line 1 column 1 (char 0)`**: el body llegó vacío.
+> Causas comunes: server no responde (usar `-v` para ver), `ADMIN_TOKEN` vacío,
+> o nginx devuelve HTML. Diagnóstico: `curl -v -H "Authorization: Bearer $ADMIN_TOKEN" "$BASE/api/v1/admin/stats"`
+
 ### 6.2 Edge sync sin auth (debe dar 401)
 
 ```bash
-curl -s -i "$BASE/api/v1/edge/sync"
-# Esperado: HTTP 401, body con "error_class":"AUTH"
+curl -si "$BASE/api/v1/edge/sync" | head -20
+# Esperado: HTTP 401 + body con "error_class":"AUTH"
 ```
 
 ### 6.3 Header X-Server-Sync-Version en ingest
 
 ```bash
-curl -s -i -X POST "$BASE/api/v1/ingest/observation" \
+curl -si -X POST "$BASE/api/v1/ingest/observation" \
     -H "Content-Type: application/json" \
     -d '{"test": true}' | grep -i "x-server-sync-version"
 # Esperado: x-server-sync-version: 0
 # (0 porque aún no se publicó ningún release)
 ```
 
-### 6.4 [VERIFICAR]
+### 6.4 CLOCK error incluye skew_seconds (v1.1+)
 
+```bash
+# Enviar un envelope con sent_at_utc muy desincronizado — debe devolver skew_seconds
+# (solo para verificar el fix de compatibilidad Edge/Core)
+curl -sf -X POST "$BASE/api/v1/ingest/observation" \
+    -H "Content-Type: application/json" \
+    -d '{"schema_version":"1.0","event_id":"00000000-0000-0000-0000-000000000001",
+         "station_uuid":"00000000-0000-0000-0000-000000000002","key_version":1,
+         "sent_at_utc":"2020-01-01T00:00:00.000Z","nonce":"aabbcc",
+         "payload":{},"signature":"invalid"}' | python3 -m json.tool
+# Esperado: {"error":"...","error_class":"AUTH",...}
+# (AUTH porque la firma es inválida — se valida antes que el clock)
+# Con firma válida y clock desincronizado el body incluiría: "skew_seconds": <N>
+```
+
+### 6.5 [VERIFICAR]
+
+- [ ] `GET /healthz` responde `{"status":"ok"}` (prerrequisito)
 - [ ] Tablas `sync_state` y `edge_releases` existen
-- [ ] `GET /admin/stats` responde con conteos correctos
-- [ ] `GET /admin/failures` responde `{"total":0,"items":[]}`
+- [ ] `GET /admin/stats` responde 200 con conteos correctos
+- [ ] `GET /admin/failures` responde 200 con `{"total":0,...}`
 - [ ] `GET /edge/sync` sin auth devuelve 401
 - [ ] Header `X-Server-Sync-Version: 0` presente en respuestas de ingest
+- [ ] Errores CLOCK contienen `skew_seconds` en el body (v1.1+)
 
 ---
 
@@ -426,4 +471,4 @@ UNION ALL SELECT 'failures_dlq', COUNT(*) FROM bronze.ingest_failures;"
 
 ---
 
-*Documento v1.0 · 08-Jun-2026 · Continúa en Fase 9.3 (nginx multi-subdominio + smoke E2E) y C10 (capa SQL de agregación pública).*
+*Documento v1.1 · 12-Jun-2026 · v1.0: 08-Jun-2026 · Continúa en Fase 9.3 (nginx multi-subdominio + smoke E2E) y C10 (capa SQL de agregación pública).*
