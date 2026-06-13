@@ -104,6 +104,15 @@ class Settings(BaseSettings):
     # resolve from the working directory at runtime.
     releases_dir: str = "data/releases"
 
+    # ─── Public API CORS (C11) ───────────────────────────────────────────
+    # CSV of allowed origins for /api/v1/public/*. Env var:
+    # YVY_PUBLIC_CORS_ORIGINS=https://yvyedge.com,https://*.vercel.app
+    public_cors_origins: Annotated[list[str], NoDecode] = [
+        "http://localhost:3000",
+        "https://yvyedge.com",
+        "https://*.vercel.app",
+    ]
+
     # ─── Parsers ─────────────────────────────────────────────────────────
     @field_validator("supported_schemas", mode="before")
     @classmethod
@@ -118,6 +127,13 @@ class Settings(BaseSettings):
         """
         if isinstance(v, str):
             return frozenset(s.strip() for s in v.split(",") if s.strip())
+        return v
+
+    @field_validator("public_cors_origins", mode="before")
+    @classmethod
+    def _parse_cors_origins_csv(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            return [s.strip() for s in v.split(",") if s.strip()]
         return v
 
     # ─── Validators ──────────────────────────────────────────────────────

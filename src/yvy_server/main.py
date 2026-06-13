@@ -41,6 +41,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from yvy_server import __version__
 from yvy_server.application.auth import EnvelopeValidator
@@ -66,7 +67,7 @@ from yvy_server.infrastructure.persistence import (
 from yvy_server.infrastructure.publisher import PostgresDirectPublisher
 from yvy_server.logging_setup import setup_logging
 from yvy_server.presentation.api import ServerHeadersMiddleware
-from yvy_server.presentation.api.routers import admin, edge, health, ingest
+from yvy_server.presentation.api.routers import admin, edge, health, ingest, public
 
 
 @asynccontextmanager
@@ -177,11 +178,20 @@ def create_app() -> FastAPI:
     )
 
     app.add_middleware(ServerHeadersMiddleware)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=get_settings().public_cors_origins,
+        allow_origin_regex=r"https://.*\.vercel\.app",
+        allow_methods=["GET"],
+        allow_headers=["*"],
+        max_age=600,
+    )
 
     app.include_router(health.router)
     app.include_router(admin.router)
     app.include_router(ingest.router)
     app.include_router(edge.router)
+    app.include_router(public.router)
 
     return app
 

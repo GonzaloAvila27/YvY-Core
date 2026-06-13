@@ -120,7 +120,7 @@ Ninguna al momento de generar v2.0. Si surgen durante implementación, agregar a
 | Fase | Nombre | Estado | Bloqueante de Web |
 |---|---|---|---|
 | C10 | Capa de agregación SQL + views | ✅ Cerrada 12-Jun | W2 |
-| C11 | Subdominio `api.yvyedge.com` + endpoints `/public/network` y `/public/stations` | Pendiente | W2 |
+| C11 | Subdominio `api.yvyedge.com` + endpoints `/public/network` y `/public/stations` | ✅ Cerrada 12-Jun | W2 |
 | C12 | Endpoints `/public/metrics` y `/public/dashboard` (provincial) | Pendiente | W3 |
 | C13 | Variables derivadas (VPD, dewpoint) | Pendiente | W3 |
 | C14 | Sistema de Novedades + CLI `publish-news` + endpoint `/public/news` | Pendiente | W4 |
@@ -781,7 +781,7 @@ El cálculo de `uptime_30d` es no trivial. Aproximación: % de buckets de 5min d
 
 # Fase C11 — Subdominio api.yvyedge.com + endpoints /public/network y /public/stations
 
-**Estado:** Pendiente
+**Estado:** ✅ Cerrada — 12-Jun-2026
 **Bloqueante de:** Fase W2
 
 ## Prompt de inicio
@@ -854,6 +854,16 @@ Web puede consumir el estado de red real del Core a través de endpoints públic
 ## Criterios de cierre
 
 `curl https://api.yvyedge.com/api/v1/public/network` responde JSON válido en < 200ms. `curl https://api.yvyedge.com/api/v1/public/stations` responde con las 18 estaciones. CORS preflight desde `https://yvyedge.com` responde OK. Cache headers presentes. Tests verdes. Certificado SSL válido. `edge.yvyedge.com` sigue funcionando intacto.
+
+## Notas de implementación
+
+**Implementación real (12-Jun-2026):**
+- `routers/public.py` — prefijo `/api/v1/public`, sin auth, 3 endpoints: `/network`, `/stations`, `/stations/{id}`. `{id}` acepta UUID o code (ej. `IEA-07`).
+- `schemas_public.py` — `NetworkStatusResponse`, `StationsResponse`, `StationSchema`, `LastValuesSchema`, `CoordinatesSchema`. Shape camelCase según DATA-CONTRACT.
+- `config.py` — campo `public_cors_origins` (CSV → list[str]) con validator. Env var: `YVY_PUBLIC_CORS_ORIGINS`.
+- `main.py` — `CORSMiddleware` con `allow_origin_regex` para `*.vercel.app`. Sólo métodos GET.
+- `nginx.conf` — server block `api.yvyedge.com` (HTTP redirect + HTTPS). Bloque `/assets/insights/` preparado para C15 (serve estático desde `/opt/yvy-server/insights-assets/`). Certificado: `--expand` del certbot existente de `edge.yvyedge.com`. **DNS pendiente de acción manual**: crear A record `api.yvyedge.com` → misma IP.
+- Commit: branch `plan_fases_api`.
 
 ## Log de consultas
 
