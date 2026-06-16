@@ -112,14 +112,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     publisher = PostgresDirectPublisher(session_factory, bronze_repo)
 
     # ─── Use cases ──────────────────────────────────────────────────────
-    _uc_kwargs = dict(
-        validator=envelope_validator,
-        publisher=publisher,
-        log_repo=log_repo,
-        failures_repo=failures_repo,
-        session_factory=session_factory,
-        producer_version=__version__,
-    )
+    _uc_kwargs = {
+        "validator": envelope_validator,
+        "publisher": publisher,
+        "log_repo": log_repo,
+        "failures_repo": failures_repo,
+        "session_factory": session_factory,
+        "producer_version": __version__,
+    }
     ingest_observation_use_case = IngestObservationUseCase(**_uc_kwargs)
     ingest_sensor_use_case = IngestSensorUseCase(**_uc_kwargs)
     ingest_event_use_case = IngestEventUseCase(**_uc_kwargs)

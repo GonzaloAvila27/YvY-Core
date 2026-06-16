@@ -98,13 +98,13 @@ async def _verify_edge_hmac(
 
     # Parse station_uuid and key_version
     try:
-        station_uuid = UUID(station_uuid_str)  # type: ignore[arg-type]
-        key_version = int(key_version_str)  # type: ignore[arg-type]
+        station_uuid = UUID(station_uuid_str or "")
+        key_version = int(key_version_str or "")
     except (ValueError, AttributeError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"error": "Invalid X-Station-UUID or X-Key-Version", "error_class": "AUTH"},
-        )
+        ) from None
 
     # Resolve station + credential
     station_repo: StationRepository = request.app.state.station_repo
@@ -151,18 +151,17 @@ async def _verify_edge_hmac(
             detail={"error": "HMAC signature mismatch", "error_class": "AUTH"},
         )
 
-    # Clock skew check
+    # Clock skew check — sent_at_utc_str is non-None (missing-headers guard above)
+    sent_at_utc_val: str = sent_at_utc_str or ""
     try:
-        if sent_at_utc_str.endswith("Z"):  # type: ignore[union-attr]
-            sent_at_str = sent_at_utc_str[:-1] + "+00:00"
-        else:
-            sent_at_str = sent_at_utc_str  # type: ignore[assignment]
-        sent_at = datetime.fromisoformat(sent_at_str)
+        sent_at = datetime.fromisoformat(
+            sent_at_utc_val[:-1] + "+00:00" if sent_at_utc_val.endswith("Z") else sent_at_utc_val
+        )
     except (ValueError, AttributeError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"error": "Invalid X-Sent-At-UTC format", "error_class": "AUTH"},
-        )
+        ) from None
 
     max_skew: int = request.app.state.settings.clock_skew_max_seconds
     skew = int(abs((datetime.now(UTC) - sent_at).total_seconds()))
@@ -220,7 +219,7 @@ async def edge_sync(
     sync_version = await edge_release_repo.get_current_sync_version(session)
 
     if release is not None and _version_gt(release.edge_version, x_edge_version):
-        updates: dict = {
+        updates: dict[str, object] = {
             "available": True,
             "edge_version": release.edge_version,
             "package_url": f"/api/v1/edge/updates/{release.package_filename}",

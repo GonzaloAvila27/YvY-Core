@@ -23,10 +23,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 from yvy_server.application.use_cases import (
     IngestEventUseCase,
-    IngestFailure,
     IngestObservationUseCase,
     IngestSensorUseCase,
     IngestSuccess,
@@ -61,7 +61,7 @@ def _sync_version_header(request: Request) -> dict[str, str]:
 async def _run_ingest(
     request: Request,
     use_case: IngestObservationUseCase | IngestSensorUseCase | IngestEventUseCase,
-    payload_validator_factory: type,
+    payload_validator_factory: type[BaseModel],
 ) -> JSONResponse:
     """Common ingest handler body for all three endpoints."""
     received_at_utc = _dt.datetime.now(_dt.UTC)
@@ -86,7 +86,7 @@ async def _run_ingest(
             headers=extra_headers,
         )
 
-    def _validate_payload(payload: dict) -> None:
+    def _validate_payload(payload: dict[str, object]) -> None:
         payload_validator_factory.model_validate(payload)
 
     outcome = await use_case.execute(
@@ -111,7 +111,7 @@ async def _run_ingest(
 
     return _error_response(
         status_code=outcome.http_status,
-        error_class=outcome.error_class,  # type: ignore[arg-type]
+        error_class=outcome.error_class,
         error_message=outcome.error_message,
         headers=extra_headers,
         skew_seconds=outcome.skew_seconds,

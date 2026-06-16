@@ -70,11 +70,13 @@ select = [
 ignore = [
     "E501",     # line-too-long (controlled by formatter)
     "B008",     # function call in default arg — FastAPI Depends() needs this
+    "N811",     # UUID imported as PyUUID — intentional alias for clarity vs sqlalchemy UUID
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101"]  # assert allowed in tests
 "alembic/versions/*" = ["E402", "F401"]  # alembic generated files
+"src/yvy_server/presentation/api/schemas_public.py" = ["N815"]  # camelCase = JSON API contract
 
 [tool.ruff.format]
 quote-style = "double"
