@@ -4,7 +4,7 @@ Read-only. No writes. Returns domain VOs, never ORM rows.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -28,7 +28,7 @@ class PublicReadRepository:
             localities_count=row["localities_count"] or 0,
             last_sync_seconds=row["last_sync_seconds"],
             uptime_30d=float(row["uptime_30d"] or 0),
-            generated_at=row["generated_at"] or datetime.now(timezone.utc),
+            generated_at=row["generated_at"] or datetime.now(UTC),
         )
 
     async def get_station_summaries(self, session: AsyncSession) -> list[StationSummary]:

@@ -20,7 +20,6 @@ from yvy_server.logging_setup import (
     setup_logging,
 )
 
-
 # ─── Fixtures ────────────────────────────────────────────────────────────
 
 
@@ -58,7 +57,7 @@ def _read_one_record(buf: io.StringIO) -> dict[str, object]:
     """Read the single JSON line in the buffer and parse it."""
     lines = [line for line in buf.getvalue().splitlines() if line]
     assert len(lines) == 1, f"Expected 1 log line, got {len(lines)}: {lines}"
-    return json.loads(lines[0])
+    return json.loads(lines[0])  # type: ignore[no-any-return]
 
 
 def _read_all_records(buf: io.StringIO) -> list[dict[str, object]]:
@@ -186,7 +185,7 @@ def test_datetime_encoded_as_iso(captured_logs: io.StringIO) -> None:
     dt = datetime(2026, 5, 16, 12, 0, 0, tzinfo=UTC)
     logging.getLogger("yvy.test.dt").info("d", extra={"observed_at": dt})
     record = _read_one_record(captured_logs)
-    assert record["observed_at"].startswith("2026-05-16T12:00:00")
+    assert str(record["observed_at"]).startswith("2026-05-16T12:00:00")
 
 
 def test_date_encoded_as_iso(captured_logs: io.StringIO) -> None:

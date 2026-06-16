@@ -11,7 +11,6 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, datetime
 from typing import Any
-from uuid import uuid4
 
 import pytest
 
@@ -19,10 +18,8 @@ from yvy_server.infrastructure.persistence.ingest_failures_repository import (
     IngestFailuresRepository,
 )
 from yvy_server.infrastructure.persistence.ingest_log_repository import (
-    IngestLogRepository,
     IngestStats,
 )
-
 
 # ─── Fake session / ORM ──────────────────────────────────────────────────
 
@@ -40,7 +37,7 @@ class _FakeScalarResult:
     def scalars(self) -> _FakeScalarResult:
         return self
 
-    def all(self) -> list:
+    def all(self) -> list[Any]:
         if isinstance(self._value, list):
             return self._value
         return [self._value] if self._value is not None else []
@@ -196,13 +193,13 @@ class _FakeListSession:
 
     async def execute(self, stmt: Any) -> Any:
         class _R:
-            def __init__(self, rows: list) -> None:
+            def __init__(self, rows: list[Any]) -> None:
                 self._rows = rows
 
             def scalars(self) -> _R:
                 return self
 
-            def all(self) -> list:
+            def all(self) -> list[Any]:
                 return self._rows
 
         return _R(self._rows)

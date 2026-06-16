@@ -53,7 +53,6 @@ from yvy_server.domain.auth import (
 )
 from yvy_server.domain.station import Station, StationCredential
 
-
 # ─── Helpers ─────────────────────────────────────────────────────────────
 
 
@@ -135,7 +134,7 @@ class TestValidateShape:
     def test_unsupported_schema_version_raises(self) -> None:
         envelope = _sign(_valid_envelope_no_sig())
         envelope["schema_version"] = "9.9"
-        with pytest.raises(EnvelopeShapeError, match="9.9"):
+        with pytest.raises(EnvelopeShapeError, match=r"9\.9"):
             validate_shape(envelope, SUPPORTED_SCHEMAS)
 
     def test_unsupported_schema_version_message_lists_supported(self) -> None:
@@ -392,7 +391,7 @@ def _make_validator(
 
 
 # A sentinel session — fakes ignore it
-_SESSION = object()
+_SESSION: Any = object()
 
 
 class TestEnvelopeValidator:

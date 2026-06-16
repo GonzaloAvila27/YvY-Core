@@ -165,7 +165,7 @@ class _BaseIngestUseCase:
         if payload_validator is not None:
             try:
                 payload_validator(envelope["payload"])
-            except Exception as err:  # noqa: BLE001 — we capture anything Pydantic raises
+            except Exception as err:
                 # Record in DLQ + log
                 async with self._session_factory() as session, session.begin():
                     await self._failures_repo.record_failure(
@@ -215,7 +215,7 @@ class _BaseIngestUseCase:
                 producer_version=self._producer_version,
             )
             publish_result = await self._publisher.publish(event)
-        except Exception:  # noqa: BLE001 — any publish failure is SERVER
+        except Exception:
             _log.exception(
                 "publish failed",
                 extra={

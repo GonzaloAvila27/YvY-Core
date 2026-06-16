@@ -29,7 +29,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-
 # ─── Payloads (post-HMAC validation, schema_version=1.0) ────────────────
 
 

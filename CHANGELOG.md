@@ -7,7 +7,33 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Fixed
+### Fixed (2026-06-16 — CI/CD pre-checks `plan_fases_api`)
+
+- **ruff** — 28 lint errors eliminated: import ordering (`I001`), unsorted `__all__`
+  (`RUF022`), stale `# noqa: BLE001` (`RUF100`), missing end-of-file newlines (`W292`),
+  `E402` in `alembic/env.py`, and regex match strings missing `r` prefix (`RUF043` ×4).
+
+- **mypy** — 34 type errors resolved across 6 files:
+  - `src/yvy_server/__init__.py` — corrected `type: ignore` code from `[import-untyped]`
+    to `[import-not-found]` (module `_version` is absent, not untyped).
+  - `tests/unit/test_logging_setup.py` — added `# type: ignore[no-any-return]` on
+    `json.loads()` return; cast `record["observed_at"]` to `str` before `.startswith()`.
+  - `tests/unit/test_config.py` — added `# type: ignore[call-arg]` on `Settings(_env_file=…)`.
+  - `tests/unit/test_admin_repos.py` — replaced bare `list` return/param annotations with
+    `list[Any]` (×3).
+  - `tests/unit/test_envelope_validator.py` — typed sentinel `_SESSION: Any = object()` so
+    it can be passed to async repo methods without 9 repeated `[arg-type]` errors.
+  - `tests/unit/test_ingest_sensor_event_use_cases.py` — replaced bare `dict` / `list[dict]`
+    with `dict[str, Any]` / `list[dict[str, Any]]` (×5); removed stale `# type: ignore[misc]`
+    on `@asynccontextmanager` functions; added `# type: ignore[arg-type]` to fake-object
+    constructor args (validator, publisher, log_repo, failures_repo, session_factory ×2
+    use-case builders).
+
+  All 65 source files pass `mypy .` with no errors.
+
+- **pytest** — 142 unit tests pass (`pytest -x -v`). No DB required (pure unit tests).
+
+### Fixed (2026-06-12)
 
 - **CLOCK error response now includes `skew_seconds`** — `IngestErrorResponse` gains an
   optional `skew_seconds: int | None` field. For CLOCK errors (422) the server now returns

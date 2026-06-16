@@ -13,7 +13,6 @@ from pydantic import SecretStr, ValidationError
 
 from yvy_server.config import Settings, get_settings
 
-
 # A "strong" token used in tests where the production check must pass.
 # 48 chars, no "CHANGE_ME" substring.
 STRONG_TOKEN = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUV"
@@ -41,7 +40,7 @@ def _clear_get_settings_cache() -> Any:
 
 def _build(**overrides: Any) -> Settings:
     """Construct Settings ignoring any ``.env`` file on disk."""
-    return Settings(_env_file=None, **overrides)
+    return Settings(_env_file=None, **overrides)  # type: ignore[call-arg]
 
 
 # ─── Defaults ────────────────────────────────────────────────────────────

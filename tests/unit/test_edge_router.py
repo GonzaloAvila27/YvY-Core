@@ -16,7 +16,6 @@ import pytest
 from yvy_server.domain.auth import canonicalize
 from yvy_server.presentation.api.routers.edge import _version_gt
 
-
 # ─── _version_gt ─────────────────────────────────────────────────────────
 
 

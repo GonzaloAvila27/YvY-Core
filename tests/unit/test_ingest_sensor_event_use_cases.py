@@ -79,7 +79,7 @@ class _FakeLogRepo:
 
 
 class _FakeFailuresRepo:
-    recorded: list[dict] = field(default_factory=list)
+    recorded: list[dict[str, Any]] = field(default_factory=list)
 
     def __init__(self) -> None:
         self.recorded = []
@@ -118,7 +118,7 @@ _FAKE_CREDENTIAL = StationCredential(
 
 class _FakeValidator:
     async def validate(
-        self, session: Any, envelope: dict, received_at_utc: datetime
+        self, session: Any, envelope: dict[str, Any], received_at_utc: datetime
     ) -> _FakeValidatedEnvelope:
         return _FakeValidatedEnvelope(station=_FAKE_STATION, credential=_FAKE_CREDENTIAL)
 
@@ -127,7 +127,7 @@ class _FakeValidatorFails:
     """Raises an AUTH error to simulate envelope validation failure."""
 
     async def validate(
-        self, session: Any, envelope: dict, received_at_utc: datetime
+        self, session: Any, envelope: dict[str, Any], received_at_utc: datetime
     ) -> _FakeValidatedEnvelope:
         from yvy_server.domain.auth import HmacMismatchError
 
@@ -141,16 +141,16 @@ class _FakeSession:
         pass
 
     @asynccontextmanager
-    async def begin(self):  # type: ignore[misc]
+    async def begin(self):
         yield
 
 
 @asynccontextmanager
-async def _fake_session_factory():  # type: ignore[misc]
+async def _fake_session_factory():
     yield _FakeSession()
 
 
-def _make_envelope(payload: dict, event_id: UUID | None = None) -> dict:
+def _make_envelope(payload: dict[str, Any], event_id: UUID | None = None) -> dict[str, Any]:
     """Build a minimal valid-looking envelope dict."""
     eid = event_id or uuid4()
     env = {
@@ -178,11 +178,11 @@ def _build_sensor_uc(
     failures_repo: Any = None,
 ) -> IngestSensorUseCase:
     return IngestSensorUseCase(
-        validator=validator or _FakeValidator(),
-        publisher=publisher or _FakePublisher(),
-        log_repo=log_repo or _FakeLogRepo(),
-        failures_repo=failures_repo or _FakeFailuresRepo(),
-        session_factory=_fake_session_factory,
+        validator=validator or _FakeValidator(),  # type: ignore[arg-type]
+        publisher=publisher or _FakePublisher(),  # type: ignore[arg-type]
+        log_repo=log_repo or _FakeLogRepo(),  # type: ignore[arg-type]
+        failures_repo=failures_repo or _FakeFailuresRepo(),  # type: ignore[arg-type]
+        session_factory=_fake_session_factory,  # type: ignore[arg-type]
         producer_version="test",
     )
 
@@ -195,11 +195,11 @@ def _build_event_uc(
     failures_repo: Any = None,
 ) -> IngestEventUseCase:
     return IngestEventUseCase(
-        validator=validator or _FakeValidator(),
-        publisher=publisher or _FakePublisher(),
-        log_repo=log_repo or _FakeLogRepo(),
-        failures_repo=failures_repo or _FakeFailuresRepo(),
-        session_factory=_fake_session_factory,
+        validator=validator or _FakeValidator(),  # type: ignore[arg-type]
+        publisher=publisher or _FakePublisher(),  # type: ignore[arg-type]
+        log_repo=log_repo or _FakeLogRepo(),  # type: ignore[arg-type]
+        failures_repo=failures_repo or _FakeFailuresRepo(),  # type: ignore[arg-type]
+        session_factory=_fake_session_factory,  # type: ignore[arg-type]
         producer_version="test",
     )
 
@@ -299,7 +299,7 @@ def test_sensor_payload_validation_failure_goes_to_dlq() -> None:
 
     envelope = _make_envelope({"observed_at": "2026-06-01T12:00:00Z", "event_id": str(uuid4())})
 
-    def _bad_validator(payload: dict) -> None:
+    def _bad_validator(payload: dict[str, Any]) -> None:
         raise ValueError("missing required field")
 
     result = asyncio.run(

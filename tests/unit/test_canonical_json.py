@@ -25,7 +25,6 @@ from yvy_server.domain.auth.canonical_json import (
     canonicalize,
 )
 
-
 # ─── Sanity: spec version constant ───────────────────────────────────────
 
 
@@ -164,17 +163,17 @@ def test_large_int() -> None:
 
 
 def test_nan_raises() -> None:
-    with pytest.raises(ValueError, match="(?i)nan|out of range"):
+    with pytest.raises(ValueError, match=r"(?i)nan|out of range"):
         canonicalize({"v": float("nan")})
 
 
 def test_positive_infinity_raises() -> None:
-    with pytest.raises(ValueError, match="(?i)inf|out of range"):
+    with pytest.raises(ValueError, match=r"(?i)inf|out of range"):
         canonicalize({"v": float("inf")})
 
 
 def test_negative_infinity_raises() -> None:
-    with pytest.raises(ValueError, match="(?i)inf|out of range"):
+    with pytest.raises(ValueError, match=r"(?i)inf|out of range"):
         canonicalize({"v": float("-inf")})
 
 

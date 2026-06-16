@@ -77,7 +77,7 @@ async def admin_healthz(
             stmt = select(func.count()).select_from(orm)
             result = await session.execute(stmt)
             counts[label] = result.scalar_one()
-    except Exception:  # noqa: BLE001 — we want any DB error to set the flag
+    except Exception:
         _log.exception("admin_healthz: DB query failed")
         db_responsive = False
         counts = {}

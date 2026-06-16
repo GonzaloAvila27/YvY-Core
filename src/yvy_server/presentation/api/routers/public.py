@@ -11,6 +11,7 @@ Three endpoints:
 from __future__ import annotations
 
 import logging
+from datetime import UTC
 from typing import Annotated
 from uuid import UUID
 
@@ -110,10 +111,10 @@ async def get_stations(request: Request, session: SessionDep) -> JSONResponse:
     """All station summaries from v_station_summary."""
     repo: PublicReadRepository = request.app.state.public_read_repo
     summaries = await repo.get_station_summaries(session)
-    from datetime import datetime, timezone
+    from datetime import datetime
     body = StationsResponse(
         stations=[_to_station_schema(s) for s in summaries],
-        generatedAt=datetime.now(timezone.utc),
+        generatedAt=datetime.now(UTC),
     )
     return JSONResponse(
         content=body.model_dump(mode="json"),
@@ -142,10 +143,10 @@ async def get_station(
             detail={"error": f"Station {station_id!r} not found", "error_class": "NOT_FOUND"},
         )
 
-    from datetime import datetime, timezone
+    from datetime import datetime
     body = StationsResponse(
         stations=[_to_station_schema(summary)],
-        generatedAt=datetime.now(timezone.utc),
+        generatedAt=datetime.now(UTC),
     )
     return JSONResponse(
         content=body.model_dump(mode="json"),

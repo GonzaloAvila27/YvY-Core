@@ -5,7 +5,7 @@ which writes ``_version.py``. In dev (no build step), fallback values are used.
 """
 
 try:
-    from yvy_server._version import (  # type: ignore[import-untyped]
+    from yvy_server._version import (  # type: ignore[import-not-found]
         __build_date__,
         __git_commit_short__,
         __version__,
@@ -15,4 +15,4 @@ except ImportError:
     __git_commit_short__ = "unknown"
     __build_date__ = "unknown"
 
-__all__ = ["__version__", "__git_commit_short__", "__build_date__"]
+__all__ = ["__build_date__", "__git_commit_short__", "__version__"]
