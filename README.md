@@ -1,5 +1,7 @@
 # YVY Server — Bronze ingest layer
 
+[![CI](https://github.com/GonzaloAvila27/YvY-Core/actions/workflows/ci.yml/badge.svg)](https://github.com/GonzaloAvila27/YvY-Core/actions/workflows/ci.yml)
+
 Servidor central de ingesta del sistema YVY. Recibe datos meteorológicos
 de los edges (netbooks de IEAs en Misiones) vía HTTPS firmado HMAC-SHA256
 y los persiste en una capa Bronze de PostgreSQL.
