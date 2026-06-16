@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: yvyserver
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: yvy_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Lint (ruff)
+        run: poetry run ruff check .
+
+      - name: Type check (mypy)
+        run: poetry run mypy .
+
+      - name: Run migrations on test DB
+        env:
+          YVY_DB_DSN: postgresql+asyncpg://yvyserver:test_password@localhost:5432/yvy_test
+          YVY_ENV: test
+          YVY_ADMIN_TOKEN: test_token_for_ci_only_not_used_in_prod_xxxxxxxxxx
+        run: poetry run alembic upgrade head
+
+      - name: Run tests
+        env:
+          YVY_DB_DSN: postgresql+asyncpg://yvyserver:test_password@localhost:5432/yvy_test
+          YVY_ENV: test
+          YVY_ADMIN_TOKEN: test_token_for_ci_only_not_used_in_prod_xxxxxxxxxx
+        run: poetry run pytest -x -v
