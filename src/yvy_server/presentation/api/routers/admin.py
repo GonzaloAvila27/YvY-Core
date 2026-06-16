@@ -18,11 +18,9 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from yvy_server.infrastructure.db import (
-    EmpiricalEventRawORM,
-    EmpiricalObservationRawORM,
     IngestFailureORM,
     IngestLogORM,
-    SensorRawORM,
+    RawRecordORM,
     StationORM,
 )
 from yvy_server.infrastructure.persistence import (
@@ -55,9 +53,7 @@ router = APIRouter(
 # output across calls and across server instances.
 _TABLES_TO_COUNT: list[tuple[str, type]] = [
     ("station", StationORM),
-    ("bronze.sensor_raw", SensorRawORM),
-    ("bronze.empirical_observation_raw", EmpiricalObservationRawORM),
-    ("bronze.empirical_event_raw", EmpiricalEventRawORM),
+    ("bronze.raw_record", RawRecordORM),
     ("bronze.ingest_log", IngestLogORM),
     ("bronze.ingest_failures", IngestFailureORM),
 ]

@@ -124,12 +124,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     ingest_sensor_use_case = IngestSensorUseCase(**_uc_kwargs)
     ingest_event_use_case = IngestEventUseCase(**_uc_kwargs)
 
-    # ─── Seed sync_version cache ─────────────────────────────────────────
-    # Cached at startup so ingest piggyback headers have a real value
-    # immediately. Stale after publish-update until server restart —
-    # acceptable for the pilot (operator restarts after publishing).
+    # ─── Seed startup caches ────────────────────────────────────────────
+    # sync_version: piggyback headers need a real value immediately.
+    # source_cache: station_uuid → canonical.source_id for ingest resolution.
     async with session_factory() as _session:
         initial_sync_version = await edge_release_repo.get_current_sync_version(_session)
+        await bronze_repo.load_source_cache(_session)
 
     # ─── Wire to app.state ──────────────────────────────────────────────
     app.state.settings = settings

@@ -1,20 +1,13 @@
-"""SQLAlchemy ORM models mapping the 7 server tables.
+"""SQLAlchemy ORM models.
 
-These models use the SQLAlchemy 2.x typed declarative style
-(``Mapped[T]`` + ``mapped_column``) for stronger type checking and
-better mypy support.
+Tracks what's actually in the DB post-M0:
+  - public.station, station_credentials, sync_state, edge_releases
+  - bronze.raw_record (particionada — M0)
+  - bronze.ingest_log, bronze.ingest_failures (audit log y DLQ, intocadas)
 
-The shape must match what migration ``0001_init.py`` creates. If a
-column changes here, a new Alembic migration is required (eventually
-via ``alembic revision --autogenerate`` once ``target_metadata`` is
-wired to ``Base.metadata`` — see step 5 closing notes).
-
-Naming convention on ``MetaData`` matches the one in ``alembic/env.py``
-so autogenerate produces predictable constraint names.
-
-Repositories (``persistence/``) consume these ORM rows and map them to
-domain VOs (``Station``, ``StationCredential``) before returning to the
-application layer. Nothing from this module leaks above infrastructure.
+Los tres *_raw anteriores (sensor_raw, empirical_observation_raw,
+empirical_event_raw) fueron dropeados en la migración M0. Sus ORMs
+fueron removidos de este módulo.
 """
 from __future__ import annotations
 
@@ -122,81 +115,43 @@ class StationCredentialORM(Base):
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
-# ─── Mixin for the 3 bronze.*_raw tables ────────────────────────────────
+# ─── bronze.raw_record (M0) ──────────────────────────────────────────────
 
 
-class _BronzeRawMixin:
-    """Shared column shape for ``bronze.{sensor,empirical_observation,empirical_event}_raw``.
+class RawRecordORM(Base):
+    """Maps ``bronze.raw_record`` — tabla genérica post-M0.
 
-    Not a ``Base`` subclass on purpose — each concrete table inherits
-    from both ``Base`` and this mixin. Keeps the columns defined once.
+    Particionada por ``received_at``. SQLAlchemy soporta INSERT en tablas
+    particionadas sin configuración especial.
 
-    The ``kafka_*`` columns remain NULL during Track A. When Track B's
-    ``DualPublisher`` arrives, it will populate them with topic /
-    partition / offset / published_at info.
+    ``record_id`` es el ``event_id`` original del envelope del Edge,
+    preservando idempotencia (ON CONFLICT DO NOTHING sobre record_id).
     """
 
-    event_id: Mapped[PyUUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
-    station_uuid: Mapped[PyUUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("station.station_uuid"),
-        nullable=False,
+    __tablename__ = "raw_record"
+    __table_args__ = (
+        Index("idx_raw_source_time", "source_id", text("received_at DESC")),
+        Index("idx_raw_kind",        "record_kind", text("received_at DESC")),
+        {"schema": "bronze"},
     )
-    schema_version: Mapped[str] = mapped_column(Text, nullable=False)
+
+    record_id: Mapped[PyUUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    source_id: Mapped[PyUUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    source_type: Mapped[str] = mapped_column(Text, nullable=False)
+    record_kind: Mapped[str] = mapped_column(Text, nullable=False)
     payload: Mapped[dict] = mapped_column(JSONB, nullable=False)  # type: ignore[type-arg]
+    schema_version: Mapped[str] = mapped_column(Text, nullable=False)
+    observed_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
     received_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
         nullable=False,
         server_default=text("now()"),
     )
-    sent_at_utc: Mapped[datetime | None] = mapped_column(
-        TIMESTAMP(timezone=True), nullable=True
-    )
-    key_version_used: Mapped[int] = mapped_column(Integer, nullable=False)
-    received_from_ip: Mapped[str | None] = mapped_column(INET, nullable=True)
-
-    # Track B Kafka placeholders. NULL while Track A is the only publisher.
-    kafka_topic: Mapped[str | None] = mapped_column(Text, nullable=True)
-    kafka_partition: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    kafka_offset: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    kafka_published_at: Mapped[datetime | None] = mapped_column(
-        TIMESTAMP(timezone=True), nullable=True
-    )
+    ingestion_meta: Mapped[dict | None] = mapped_column(JSONB, nullable=True)  # type: ignore[type-arg]
 
 
-class SensorRawORM(Base, _BronzeRawMixin):
-    """Maps ``bronze.sensor_raw``."""
-
-    __tablename__ = "sensor_raw"
-    __table_args__ = (
-        Index(
-            "idx_sensor_raw_station_recv",
-            "station_uuid",
-            text("received_at DESC"),
-        ),
-        # Expression index for time-window queries on the payload.
-        # The ``text(...)`` form is what migration 0001 uses; mirroring
-        # it here keeps autogenerate diff-free.
-        Index(
-            "idx_sensor_raw_payload_obs",
-            text("(payload->>'observed_at_utc')"),
-        ),
-        {"schema": "bronze"},
-    )
-
-
-class EmpiricalObservationRawORM(Base, _BronzeRawMixin):
-    """Maps ``bronze.empirical_observation_raw``."""
-
-    __tablename__ = "empirical_observation_raw"
-    __table_args__ = {"schema": "bronze"}
-
-
-class EmpiricalEventRawORM(Base, _BronzeRawMixin):
-    """Maps ``bronze.empirical_event_raw``."""
-
-    __tablename__ = "empirical_event_raw"
-    __table_args__ = {"schema": "bronze"}
 
 
 # ─── bronze.ingest_log ──────────────────────────────────────────────────

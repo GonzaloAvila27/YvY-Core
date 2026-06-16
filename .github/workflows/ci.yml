@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [master, plan_fases_api]
+  pull_request:
+    branches: [master]
+
+jobs:
+  lint-and-type:
+    name: Lint + Type check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: pip install poetry==1.8.3
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Ruff lint
+        run: poetry run ruff check src tests
+
+      - name: Ruff format check
+        run: poetry run ruff format --check src tests
+
+      - name: Mypy
+        run: poetry run mypy src
+
+  test:
+    name: Tests + Migration roundtrip
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: yvy
+          POSTGRES_USER: yvy
+          POSTGRES_PASSWORD: yvy
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U yvy -d yvy"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      YVY_DB_DSN: postgresql+asyncpg://yvy:yvy@localhost:5432/yvy
+      YVY_ADMIN_TOKEN: ci-yvy-admin-token-not-for-production-use
+      YVY_ENV: local
+      YVY_SUPPORTED_SCHEMAS: "1.0"
+      YVY_CLOCK_SKEW_MAX_SECONDS: "1800"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: pip install poetry==1.8.3
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Alembic upgrade (head)
+        run: poetry run alembic upgrade head
+
+      - name: Alembic downgrade (base) — verify rollback
+        run: poetry run alembic downgrade base
+
+      - name: Alembic upgrade (head) — verify idempotency
+        run: poetry run alembic upgrade head
+
+      - name: Unit tests
+        run: poetry run pytest tests/unit -m unit -v --tb=short
+
+      - name: All tests with coverage
+        run: >
+          poetry run pytest tests -v --tb=short
+          --cov=yvy_server --cov-report=term-missing
+          --cov-fail-under=80
