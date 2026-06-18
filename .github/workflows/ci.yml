@@ -9,7 +9,7 @@ on:
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
-    
+
     services:
       postgres:
         image: postgres:16
@@ -58,3 +58,124 @@ jobs:
           YVY_ENV: test
           YVY_ADMIN_TOKEN: test_token_for_ci_only_not_used_in_prod_xxxxxxxxxx
         run: poetry run pytest -x -v
+
+  migration-roundtrip:
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: yvyserver
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: yvy_roundtrip
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Migrate to pre-M0 state (002)
+        env:
+          YVY_DB_DSN: postgresql+asyncpg://yvyserver:test_password@localhost:5432/yvy_roundtrip
+          YVY_ENV: test
+          YVY_ADMIN_TOKEN: test_token_for_ci_only_not_used_in_prod_xxxxxxxxxx
+        run: poetry run alembic upgrade 0002_edge_releases
+
+      - name: Seed fixture data (simulates existing bronze rows)
+        env:
+          PGPASSWORD: test_password
+        run: |
+          psql -h localhost -U yvyserver -d yvy_roundtrip << 'SQL'
+          -- Una station de prueba
+          INSERT INTO public.station (station_uuid, name, location_lat, location_lon, location_name)
+          VALUES ('00000000-0000-4000-8000-000000000001', 'IEA-TEST', -27.0, -55.0, 'Test');
+
+          -- Una credencial de prueba
+          INSERT INTO public.station_credentials
+              (station_uuid, key_version, key_hmac_hex)
+          VALUES ('00000000-0000-4000-8000-000000000001', 1, 'aabbccdd');
+
+          -- Filas en las 3 tablas bronze viejas
+          INSERT INTO bronze.sensor_raw
+              (event_id, station_uuid, schema_version, payload, key_version_used)
+          VALUES
+              ('00000000-0000-4000-8000-000000000010',
+               '00000000-0000-4000-8000-000000000001',
+               '1.0',
+               '{"observed_at_utc":"2026-06-01T12:00:00Z","air_temp":22.5}',
+               1),
+              ('00000000-0000-4000-8000-000000000011',
+               '00000000-0000-4000-8000-000000000001',
+               '1.0',
+               '{"observed_at_utc":"2026-06-01T13:00:00Z","air_temp":23.1}',
+               1);
+
+          INSERT INTO bronze.empirical_observation_raw
+              (event_id, station_uuid, schema_version, payload, key_version_used)
+          VALUES
+              ('00000000-0000-4000-8000-000000000020',
+               '00000000-0000-4000-8000-000000000001',
+               '1.0',
+               '{"observed_at_utc":"2026-06-01T12:00:00Z","temp":22.0}',
+               1);
+
+          INSERT INTO bronze.empirical_event_raw
+              (event_id, station_uuid, schema_version, payload, key_version_used)
+          VALUES
+              ('00000000-0000-4000-8000-000000000030',
+               '00000000-0000-4000-8000-000000000001',
+               '1.0',
+               '{"observed_at_utc":"2026-06-01T12:00:00Z","event":"lluvia"}',
+               1);
+          SQL
+
+      - name: Upgrade to M0 (003)
+        env:
+          YVY_DB_DSN: postgresql+asyncpg://yvyserver:test_password@localhost:5432/yvy_roundtrip
+          YVY_ENV: test
+          YVY_ADMIN_TOKEN: test_token_for_ci_only_not_used_in_prod_xxxxxxxxxx
+        run: poetry run alembic upgrade head
+
+      - name: Verify backfill counts match
+        env:
+          PGPASSWORD: test_password
+        run: |
+          psql -h localhost -U yvyserver -d yvy_roundtrip -c "
+          SELECT
+            (SELECT COUNT(*) FROM bronze.raw_record WHERE record_kind='sensor_reading')     AS sensor,
+            (SELECT COUNT(*) FROM bronze.raw_record WHERE record_kind='empirical_observation') AS obs,
+            (SELECT COUNT(*) FROM bronze.raw_record WHERE record_kind='empirical_event')    AS ev;
+          "
+          # Debe mostrar: sensor=2, obs=1, ev=1
+
+      - name: Downgrade M0 (verify reversibility)
+        env:
+          YVY_DB_DSN: postgresql+asyncpg://yvyserver:test_password@localhost:5432/yvy_roundtrip
+          YVY_ENV: test
+          YVY_ADMIN_TOKEN: test_token_for_ci_only_not_used_in_prod_xxxxxxxxxx
+        run: poetry run alembic downgrade -1
+
+      - name: Upgrade again (idempotency)
+        env:
+          YVY_DB_DSN: postgresql+asyncpg://yvyserver:test_password@localhost:5432/yvy_roundtrip
+          YVY_ENV: test
+          YVY_ADMIN_TOKEN: test_token_for_ci_only_not_used_in_prod_xxxxxxxxxx
+        run: poetry run alembic upgrade head
