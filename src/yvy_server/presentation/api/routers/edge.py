@@ -306,7 +306,7 @@ async def edge_download(
             extra={
                 "station_uuid": str(station.station_uuid),
                 "version": release.edge_version,
-                "filename": filename,
+                "package_filename": filename,
                 "path": str(file_path),
             },
         )
@@ -320,7 +320,7 @@ async def edge_download(
         extra={
             "station_uuid": str(station.station_uuid),
             "version": release.edge_version,
-            "filename": filename,
+            "package_filename": filename,
             "bytes": release.package_size_bytes,
         },
     )
