@@ -33,19 +33,22 @@ RUN pip install "poetry==${POETRY_VERSION}"
 WORKDIR /build
 
 # Solo los archivos de dependencies para aprovechar cache de Docker
-COPY pyproject.toml ./
+COPY pyproject.toml README.md ./
 
 # Generar venv en /opt/venv (más fácil de copiar al runtime stage)
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:${PATH}"
 
 # Instalar deps de producción (sin dev). --without dev requiere poetry >= 1.2
-RUN poetry install --only main --no-root --no-cache
+RUN poetry export --only main --without-hashes -f requirements.txt -o /tmp/requirements.txt && \
+    pip install -r /tmp/requirements.txt
 
 # Copiar código y instalar el package en sí
 COPY src/ ./src/
 COPY scripts/ ./scripts/
 COPY README.md ./
+
+RUN pip install --no-deps .
 
 # ─── Inyectar versión desde build args (no copiamos .git al image) ───
 # El CI/build script extrae estos valores de git y los pasa con
