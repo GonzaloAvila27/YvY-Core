@@ -104,7 +104,7 @@ async def _verify_edge_hmac(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"error": "Invalid X-Station-UUID or X-Key-Version", "error_class": "AUTH"},
-        )
+        ) from None
 
     # Resolve station + credential
     station_repo: StationRepository = request.app.state.station_repo
@@ -162,7 +162,7 @@ async def _verify_edge_hmac(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"error": "Invalid X-Sent-At-UTC format", "error_class": "AUTH"},
-        )
+        ) from None
 
     max_skew: int = request.app.state.settings.clock_skew_max_seconds
     skew = int(abs((datetime.now(UTC) - sent_at).total_seconds()))
