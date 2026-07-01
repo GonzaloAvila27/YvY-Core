@@ -52,14 +52,14 @@ jobs:
       - name: Run migrations on test DB
         env:
           YVY_DB_DSN: postgresql+asyncpg://yvyserver:test_password@localhost:5432/yvy_test
-          YVY_ENV: test
+          YVY_ENV: local
           YVY_ADMIN_TOKEN: test_token_for_ci_only_not_used_in_prod_xxxxxxxxxx
         run: poetry run alembic upgrade head
 
       - name: Run tests
         env:
           YVY_DB_DSN: postgresql+asyncpg://yvyserver:test_password@localhost:5432/yvy_test
-          YVY_ENV: test
+          YVY_ENV: local
           YVY_ADMIN_TOKEN: test_token_for_ci_only_not_used_in_prod_xxxxxxxxxx
         run: poetry run pytest -x -v
 
@@ -99,7 +99,7 @@ jobs:
       - name: Migrate to pre-M0 state (002)
         env:
           YVY_DB_DSN: postgresql+asyncpg://yvyserver:test_password@localhost:5432/yvy_roundtrip
-          YVY_ENV: test
+          YVY_ENV: local
           YVY_ADMIN_TOKEN: test_token_for_ci_only_not_used_in_prod_xxxxxxxxxx
         run: poetry run alembic upgrade 0002_edge_releases
 
@@ -154,7 +154,7 @@ jobs:
       - name: Upgrade to M0 (003)
         env:
           YVY_DB_DSN: postgresql+asyncpg://yvyserver:test_password@localhost:5432/yvy_roundtrip
-          YVY_ENV: test
+          YVY_ENV: local
           YVY_ADMIN_TOKEN: test_token_for_ci_only_not_used_in_prod_xxxxxxxxxx
         run: poetry run alembic upgrade head
 
@@ -173,13 +173,13 @@ jobs:
       - name: Downgrade M0 (verify reversibility)
         env:
           YVY_DB_DSN: postgresql+asyncpg://yvyserver:test_password@localhost:5432/yvy_roundtrip
-          YVY_ENV: test
+          YVY_ENV: local
           YVY_ADMIN_TOKEN: test_token_for_ci_only_not_used_in_prod_xxxxxxxxxx
         run: poetry run alembic downgrade -1
 
       - name: Upgrade again (idempotency)
         env:
           YVY_DB_DSN: postgresql+asyncpg://yvyserver:test_password@localhost:5432/yvy_roundtrip
-          YVY_ENV: test
+          YVY_ENV: local
           YVY_ADMIN_TOKEN: test_token_for_ci_only_not_used_in_prod_xxxxxxxxxx
         run: poetry run alembic upgrade head
