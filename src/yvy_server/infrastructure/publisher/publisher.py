@@ -12,6 +12,7 @@ composition root (``main.py``) once Track B is ready for cutover.
 Protocol shape agreed with the Track B developer (profesor especialista).
 If they propose ajustes, we accept and update both sides.
 """
+
 from __future__ import annotations
 
 # Re-export domain types so infrastructure code can import from one place.

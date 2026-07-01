@@ -41,6 +41,7 @@ Validation behavior
 - ``YVY_SUPPORTED_SCHEMAS`` is a CSV string parsed into a ``frozenset``;
   must not be empty.
 """
+
 from __future__ import annotations
 
 from functools import lru_cache
@@ -177,8 +178,7 @@ class Settings(BaseSettings):
     def _validate_supported_schemas_nonempty(self) -> Settings:
         if not self.supported_schemas:
             raise ValueError(
-                "YVY_SUPPORTED_SCHEMAS cannot be empty. "
-                "Must include at least '1.0'."
+                "YVY_SUPPORTED_SCHEMAS cannot be empty. " "Must include at least '1.0'."
             )
         return self
 

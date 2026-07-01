@@ -20,6 +20,7 @@ The pure module-level functions (``validate_shape``, ``verify_hmac``,
 repos. The ``EnvelopeValidator`` class is the integration point used
 by the use cases.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -95,9 +96,7 @@ def validate_shape(envelope: dict[str, Any], supported_schemas: frozenset[str]) 
     """
     missing = _REQUIRED_ENVELOPE_FIELDS - envelope.keys()
     if missing:
-        raise EnvelopeShapeError(
-            f"Envelope missing required fields: {sorted(missing)}"
-        )
+        raise EnvelopeShapeError(f"Envelope missing required fields: {sorted(missing)}")
 
     schema_version = envelope["schema_version"]
     if schema_version not in supported_schemas:
@@ -125,9 +124,7 @@ def verify_hmac(
     """
     declared_signature = envelope["signature"]
 
-    envelope_without_signature = {
-        k: v for k, v in envelope.items() if k != "signature"
-    }
+    envelope_without_signature = {k: v for k, v in envelope.items() if k != "signature"}
     canonical_bytes = canonicalize(envelope_without_signature)
 
     computed = hmac.new(key_bytes, canonical_bytes, hashlib.sha256).hexdigest()
@@ -255,8 +252,7 @@ class EnvelopeValidator:
         )
         if credential is None:
             raise CredentialNotFoundError(
-                f"no active credential for station={station_uuid} "
-                f"key_version={key_version}",
+                f"no active credential for station={station_uuid} " f"key_version={key_version}",
                 station_uuid=station_uuid,
                 event_id=event_id,
             )

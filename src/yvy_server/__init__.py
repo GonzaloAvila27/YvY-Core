@@ -5,7 +5,7 @@ which writes ``_version.py``. In dev (no build step), fallback values are used.
 """
 
 try:
-    from yvy_server._version import (  # type: ignore[import-not-found]
+    from yvy_server._version import (  # type: ignore  # generado en build; ausente en source/CI
         __build_date__,
         __git_commit_short__,
         __version__,

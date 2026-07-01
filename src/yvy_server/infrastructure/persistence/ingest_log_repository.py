@@ -15,6 +15,7 @@ Schema notes
   makes admin queries over failures cheap.
 - ``record_attempt`` is append-only; ``get_stats`` is read-only.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -99,15 +100,11 @@ class IngestLogRepository:
         stats = IngestStats()
 
         # Total / success / failure counts
-        total_result = await session.execute(
-            select(func.count()).select_from(IngestLogORM)
-        )
+        total_result = await session.execute(select(func.count()).select_from(IngestLogORM))
         stats.total_attempts = int(total_result.scalar_one() or 0)
 
         success_result = await session.execute(
-            select(func.count()).select_from(IngestLogORM).where(
-                IngestLogORM.http_status == 200
-            )
+            select(func.count()).select_from(IngestLogORM).where(IngestLogORM.http_status == 200)
         )
         stats.total_successes = int(success_result.scalar_one() or 0)
         stats.total_failures = stats.total_attempts - stats.total_successes

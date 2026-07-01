@@ -4,6 +4,7 @@ Both endpoints are unauthenticated. ``/healthz`` is a pure liveness
 probe (no DB access), while ``/serverinfo`` returns server identity
 metadata that the edge agent reads for compatibility checks.
 """
+
 from __future__ import annotations
 
 import datetime as _dt

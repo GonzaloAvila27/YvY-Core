@@ -30,6 +30,7 @@ Usage:
 
 See `YVY_FASE9_Arquitectura_v2.md` §11.9 — visible code versioning.
 """
+
 from __future__ import annotations
 
 import datetime as _dt

@@ -9,6 +9,7 @@ Los tres *_raw anteriores (sensor_raw, empirical_observation_raw,
 empirical_event_raw) fueron dropeados en la migración M0. Sus ORMs
 fueron removidos de este módulo.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -67,9 +68,7 @@ class StationORM(Base):
         nullable=False,
         server_default=text("now()"),
     )
-    deactivated_at: Mapped[datetime | None] = mapped_column(
-        TIMESTAMP(timezone=True), nullable=True
-    )
+    deactivated_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
     # C10 — public layer fields (added by migration 003)
     code: Mapped[str | None] = mapped_column(Text, nullable=True, unique=True)
     locality: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -94,9 +93,7 @@ class StationCredentialORM(Base):
         ),
     )
 
-    credential_id: Mapped[int] = mapped_column(
-        BigInteger, primary_key=True, autoincrement=True
-    )
+    credential_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     station_uuid: Mapped[PyUUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("station.station_uuid"),
@@ -109,9 +106,7 @@ class StationCredentialORM(Base):
         nullable=False,
         server_default=text("now()"),
     )
-    deactivated_at: Mapped[datetime | None] = mapped_column(
-        TIMESTAMP(timezone=True), nullable=True
-    )
+    deactivated_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
@@ -131,7 +126,7 @@ class RawRecordORM(Base):
     __tablename__ = "raw_record"
     __table_args__ = (
         Index("idx_raw_source_time", "source_id", text("received_at DESC")),
-        Index("idx_raw_kind",        "record_kind", text("received_at DESC")),
+        Index("idx_raw_kind", "record_kind", text("received_at DESC")),
         {"schema": "bronze"},
     )
 
@@ -141,17 +136,13 @@ class RawRecordORM(Base):
     record_kind: Mapped[str] = mapped_column(Text, nullable=False)
     payload: Mapped[dict] = mapped_column(JSONB, nullable=False)  # type: ignore[type-arg]
     schema_version: Mapped[str] = mapped_column(Text, nullable=False)
-    observed_at: Mapped[datetime | None] = mapped_column(
-        TIMESTAMP(timezone=True), nullable=True
-    )
+    observed_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
     received_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
         nullable=False,
         server_default=text("now()"),
     )
     ingestion_meta: Mapped[dict | None] = mapped_column(JSONB, nullable=True)  # type: ignore[type-arg]
-
-
 
 
 # ─── bronze.ingest_log ──────────────────────────────────────────────────
@@ -180,9 +171,7 @@ class IngestLogORM(Base):
         server_default=text("now()"),
     )
     # Nullable because AUTH failures happen before we know the station.
-    station_uuid: Mapped[PyUUID | None] = mapped_column(
-        UUID(as_uuid=True), nullable=True
-    )
+    station_uuid: Mapped[PyUUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     endpoint: Mapped[str] = mapped_column(Text, nullable=False)
     http_status: Mapped[int] = mapped_column(Integer, nullable=False)
     failure_class: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -217,9 +206,7 @@ class IngestFailureORM(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     event_id: Mapped[PyUUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
-    station_uuid: Mapped[PyUUID | None] = mapped_column(
-        UUID(as_uuid=True), nullable=True
-    )
+    station_uuid: Mapped[PyUUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     entity_type: Mapped[str | None] = mapped_column(Text, nullable=True)
     endpoint: Mapped[str] = mapped_column(Text, nullable=False)
     failure_class: Mapped[str] = mapped_column(Text, nullable=False)
@@ -231,9 +218,7 @@ class IngestFailureORM(Base):
         server_default=text("now()"),
     )
     received_from_ip: Mapped[str | None] = mapped_column(INET, nullable=True)
-    resolved_at: Mapped[datetime | None] = mapped_column(
-        TIMESTAMP(timezone=True), nullable=True
-    )
+    resolved_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
     resolved_action: Mapped[str | None] = mapped_column(Text, nullable=True)
     resolution_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
@@ -253,9 +238,7 @@ class SyncStateORM(Base):
     __tablename__ = "sync_state"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
-    sync_version: Mapped[int] = mapped_column(
-        BigInteger, nullable=False, server_default="0"
-    )
+    sync_version: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
 
 
 # ─── public.edge_releases ───────────────────────────────────────────────
@@ -286,16 +269,12 @@ class EdgeReleaseORM(Base):
     package_filename: Mapped[str] = mapped_column(Text, nullable=False)
     package_sha256: Mapped[str] = mapped_column(Text, nullable=False)
     package_size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    min_edge_version: Mapped[str] = mapped_column(
-        Text, nullable=False, server_default=""
-    )
+    min_edge_version: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     released_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
         nullable=False,
         server_default=text("now()"),
     )
-    is_active: Mapped[bool] = mapped_column(
-        nullable=False, server_default="true"
-    )
+    is_active: Mapped[bool] = mapped_column(nullable=False, server_default="true")
     sync_version: Mapped[int] = mapped_column(BigInteger, nullable=False)

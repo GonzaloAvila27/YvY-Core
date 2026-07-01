@@ -18,6 +18,7 @@ The use case catches all expected errors internally so the handler stays
 thin. Only truly unexpected exceptions (e.g. Postgres down mid-publish)
 propagate up as 5xx ``IngestFailure``.
 """
+
 from __future__ import annotations
 
 import logging
@@ -128,9 +129,7 @@ class _BaseIngestUseCase:
         # ─── 1. Envelope validation (shape + HMAC + clock) ──────────────
         try:
             async with self._session_factory() as session:
-                validated = await self._validator.validate(
-                    session, envelope, received_at_utc
-                )
+                validated = await self._validator.validate(session, envelope, received_at_utc)
         except EnvelopeError as err:
             await self._log_attempt(
                 received_at_utc=received_at_utc,
@@ -146,9 +145,7 @@ class _BaseIngestUseCase:
                 "envelope validation failed",
                 extra={
                     "error_class": type(err).error_class,
-                    "station_uuid": (
-                        str(err.station_uuid) if err.station_uuid else None
-                    ),
+                    "station_uuid": (str(err.station_uuid) if err.station_uuid else None),
                     "event_id": str(err.event_id) if err.event_id else None,
                     "skew_seconds": err.skew_seconds,
                     "endpoint": self.ENDPOINT,

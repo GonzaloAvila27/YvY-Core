@@ -4,6 +4,7 @@ Strategy: test the pure helpers (``_version_gt``) and the HMAC
 verification logic (``_verify_edge_hmac``) via TestClient with fake
 repos on app.state. No real DB, no network.
 """
+
 from __future__ import annotations
 
 import hashlib

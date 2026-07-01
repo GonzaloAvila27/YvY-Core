@@ -13,6 +13,7 @@ Revises:
 Create Date: 2026-05-16
 
 """
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -35,6 +36,7 @@ depends_on: str | Sequence[str] | None = None
 # key_version_used, received_from_ip, kafka_* placeholders). Defining the
 # columns once via this helper avoids 3x copy-paste and the drift that
 # inevitably follows.
+
 
 def _bronze_raw_columns() -> list[sa.Column]:
     """Return the shared column list for ``bronze.<entity>_raw`` tables."""

@@ -24,6 +24,7 @@ the session factory directly::
         async with session.begin():
             ...
 """
+
 from __future__ import annotations
 
 from collections.abc import AsyncIterator

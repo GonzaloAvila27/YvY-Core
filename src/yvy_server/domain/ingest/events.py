@@ -11,6 +11,7 @@ by the handler instead of being read from ``payload["entity_type"]``
 (which doesn't exist — the v2 §11.2 code sample had a bug, see resumen
 decision 6).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

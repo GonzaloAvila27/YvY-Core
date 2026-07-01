@@ -8,6 +8,7 @@ Three endpoints:
   GET /api/v1/public/stations         — all station summaries
   GET /api/v1/public/stations/{id}    — single station by UUID or code
 """
+
 from __future__ import annotations
 
 import logging
@@ -112,6 +113,7 @@ async def get_stations(request: Request, session: SessionDep) -> JSONResponse:
     repo: PublicReadRepository = request.app.state.public_read_repo
     summaries = await repo.get_station_summaries(session)
     from datetime import datetime
+
     body = StationsResponse(
         stations=[_to_station_schema(s) for s in summaries],
         generatedAt=datetime.now(UTC),
@@ -123,9 +125,7 @@ async def get_stations(request: Request, session: SessionDep) -> JSONResponse:
 
 
 @router.get("/stations/{station_id}")
-async def get_station(
-    station_id: str, request: Request, session: SessionDep
-) -> JSONResponse:
+async def get_station(station_id: str, request: Request, session: SessionDep) -> JSONResponse:
     """Single station by UUID or code (e.g. 'IEA-07')."""
     repo: PublicReadRepository = request.app.state.public_read_repo
 
@@ -144,6 +144,7 @@ async def get_station(
         )
 
     from datetime import datetime
+
     body = StationsResponse(
         stations=[_to_station_schema(summary)],
         generatedAt=datetime.now(UTC),

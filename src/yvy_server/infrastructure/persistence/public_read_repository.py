@@ -2,6 +2,7 @@
 
 Read-only. No writes. Returns domain VOs, never ORM rows.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -33,30 +34,38 @@ class PublicReadRepository:
 
     async def get_station_summaries(self, session: AsyncSession) -> list[StationSummary]:
         rows = (
-            await session.execute(text("SELECT * FROM v_station_summary ORDER BY code"))
-        ).mappings().all()
+            (await session.execute(text("SELECT * FROM v_station_summary ORDER BY code")))
+            .mappings()
+            .all()
+        )
         return [self._row_to_summary(r) for r in rows]
 
     async def get_station_by_uuid(
         self, session: AsyncSession, station_uuid: UUID
     ) -> StationSummary | None:
         row = (
-            await session.execute(
-                text("SELECT * FROM v_station_summary WHERE station_uuid = :uuid"),
-                {"uuid": station_uuid},
+            (
+                await session.execute(
+                    text("SELECT * FROM v_station_summary WHERE station_uuid = :uuid"),
+                    {"uuid": station_uuid},
+                )
             )
-        ).mappings().one_or_none()
+            .mappings()
+            .one_or_none()
+        )
         return self._row_to_summary(row) if row else None
 
-    async def get_station_by_code(
-        self, session: AsyncSession, code: str
-    ) -> StationSummary | None:
+    async def get_station_by_code(self, session: AsyncSession, code: str) -> StationSummary | None:
         row = (
-            await session.execute(
-                text("SELECT * FROM v_station_summary WHERE code = :code"),
-                {"code": code},
+            (
+                await session.execute(
+                    text("SELECT * FROM v_station_summary WHERE code = :code"),
+                    {"code": code},
+                )
             )
-        ).mappings().one_or_none()
+            .mappings()
+            .one_or_none()
+        )
         return self._row_to_summary(row) if row else None
 
     # ─── private ──────────────────────────────────────────────────────────
@@ -69,10 +78,18 @@ class PublicReadRepository:
             last_values = LastValues(
                 temp=Decimal(str(lv_raw["temp"])) if lv_raw.get("temp") is not None else None,
                 humidity=int(lv_raw["humidity"]) if lv_raw.get("humidity") is not None else None,
-                pressure=Decimal(str(lv_raw["pressure"])) if lv_raw.get("pressure") is not None else None,
-                wind_speed=Decimal(str(lv_raw["windSpeed"])) if lv_raw.get("windSpeed") is not None else None,
-                wind_gust=Decimal(str(lv_raw["windGust"])) if lv_raw.get("windGust") is not None else None,
-                wind_direction=Decimal(str(lv_raw["windDirection"])) if lv_raw.get("windDirection") is not None else None,
+                pressure=Decimal(str(lv_raw["pressure"]))
+                if lv_raw.get("pressure") is not None
+                else None,
+                wind_speed=Decimal(str(lv_raw["windSpeed"]))
+                if lv_raw.get("windSpeed") is not None
+                else None,
+                wind_gust=Decimal(str(lv_raw["windGust"]))
+                if lv_raw.get("windGust") is not None
+                else None,
+                wind_direction=Decimal(str(lv_raw["windDirection"]))
+                if lv_raw.get("windDirection") is not None
+                else None,
                 timestamp=lv_raw.get("timestamp"),
             )
         return StationSummary(

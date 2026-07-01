@@ -3,6 +3,7 @@
 Separate from schemas.py (ingest) to keep each surface area small.
 Shape matches the DATA-CONTRACT.md spec (Apéndice A of the plan).
 """
+
 from __future__ import annotations
 
 from datetime import datetime

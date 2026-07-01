@@ -22,6 +22,7 @@ Idempotency
 ``record_id`` maps 1-to-1 from the old ``event_id`` (same UUID from the
 Edge envelope), preserving deduplication semantics byte-for-byte.
 """
+
 from __future__ import annotations
 
 from typing import ClassVar
@@ -69,8 +70,7 @@ class BronzeRepository:
             )
         )
         self._station_source_cache = {
-            PyUUID(row.external_ref): row.source_id
-            for row in result.mappings()
+            PyUUID(row.external_ref): row.source_id for row in result.mappings()
         }
 
     async def _resolve_source_id(

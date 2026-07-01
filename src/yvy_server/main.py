@@ -34,6 +34,7 @@ The module-level ``app`` is what uvicorn loads. ``create_app()`` is
 exposed for tests that want to construct a fresh instance with
 overrides.
 """
+
 from __future__ import annotations
 
 import logging

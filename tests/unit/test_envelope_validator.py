@@ -24,6 +24,7 @@ The validator's ``validate`` method is async. To avoid adding
 wraps its body in ``asyncio.run(...)``. This works because each test
 is a single self-contained event loop run.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -295,8 +296,11 @@ class TestCheckClockSkew:
         evt = uuid4()
         with pytest.raises(ClockSkewError) as excinfo:
             check_clock_skew(
-                envelope, received, MAX_SKEW_SECONDS,
-                station_uuid=sta, event_id=evt,
+                envelope,
+                received,
+                MAX_SKEW_SECONDS,
+                station_uuid=sta,
+                event_id=evt,
             )
         assert excinfo.value.station_uuid == sta
         assert excinfo.value.event_id == evt
@@ -339,7 +343,10 @@ class _FakeCredentialRepo:
         self.creds[(cred.station_uuid, cred.key_version)] = cred
 
     async def get_active_by_station_and_version(
-        self, session: Any, station_uuid: UUID, key_version: int,
+        self,
+        session: Any,
+        station_uuid: UUID,
+        key_version: int,
     ) -> StationCredential | None:
         self.get_calls.append((station_uuid, key_version))
         cred = self.creds.get((station_uuid, key_version))
@@ -380,7 +387,8 @@ def _make_credential(
 
 
 def _make_validator(
-    station_repo: _FakeStationRepo, cred_repo: _FakeCredentialRepo,
+    station_repo: _FakeStationRepo,
+    cred_repo: _FakeCredentialRepo,
 ) -> EnvelopeValidator:
     return EnvelopeValidator(
         station_repo=station_repo,  # type: ignore[arg-type]  # fakes match protocol
@@ -405,9 +413,11 @@ class TestEnvelopeValidator:
         validator = _make_validator(station_repo, cred_repo)
 
         now = datetime.now(UTC)
-        envelope = _sign(_valid_envelope_no_sig(
-            sent_at_utc=now.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
-        ))
+        envelope = _sign(
+            _valid_envelope_no_sig(
+                sent_at_utc=now.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+            )
+        )
         result = asyncio.run(validator.validate(_SESSION, envelope, now))
 
         assert isinstance(result, ValidatedEnvelope)
@@ -501,9 +511,11 @@ class TestEnvelopeValidator:
         validator = _make_validator(station_repo, cred_repo)
 
         sent = datetime(2026, 5, 21, 18, 0, 0, tzinfo=UTC)
-        envelope = _sign(_valid_envelope_no_sig(
-            sent_at_utc=sent.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
-        ))
+        envelope = _sign(
+            _valid_envelope_no_sig(
+                sent_at_utc=sent.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+            )
+        )
         received = sent + timedelta(seconds=3700)
 
         with pytest.raises(ClockSkewError) as excinfo:

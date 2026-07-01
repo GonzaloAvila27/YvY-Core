@@ -7,6 +7,7 @@ failure branches correctly for the new endpoints.
 
 Strategy: fake repos + fake validator/publisher, no DB, no async I/O.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -225,9 +226,7 @@ def test_event_use_case_endpoint_and_entity_type() -> None:
 @pytest.mark.unit
 def test_sensor_success_returns_ingest_success() -> None:
     uc = _build_sensor_uc()
-    envelope = _make_envelope(
-        {"observed_at": "2026-06-01T12:00:00Z", "event_id": str(uuid4())}
-    )
+    envelope = _make_envelope({"observed_at": "2026-06-01T12:00:00Z", "event_id": str(uuid4())})
     result = asyncio.run(
         uc.execute(
             envelope=envelope,
@@ -243,9 +242,7 @@ def test_sensor_success_returns_ingest_success() -> None:
 @pytest.mark.unit
 def test_sensor_duplicate_returns_ingest_success_with_flag() -> None:
     uc = _build_sensor_uc(publisher=_FakePublisherDuplicate())
-    envelope = _make_envelope(
-        {"observed_at": "2026-06-01T12:00:00Z", "event_id": str(uuid4())}
-    )
+    envelope = _make_envelope({"observed_at": "2026-06-01T12:00:00Z", "event_id": str(uuid4())})
     result = asyncio.run(
         uc.execute(
             envelope=envelope,
@@ -364,7 +361,9 @@ def test_sensor_logs_success_attempt() -> None:
 def test_event_logs_auth_failure() -> None:
     log_repo = _FakeLogRepo()
     uc = _build_event_uc(validator=_FakeValidatorFails(), log_repo=log_repo)
-    envelope = _make_envelope({"event_record_id": str(uuid4()), "observation_date": "2026-06-01", "event_type": "hail"})
+    envelope = _make_envelope(
+        {"event_record_id": str(uuid4()), "observation_date": "2026-06-01", "event_type": "hail"}
+    )
     asyncio.run(
         uc.execute(
             envelope=envelope,

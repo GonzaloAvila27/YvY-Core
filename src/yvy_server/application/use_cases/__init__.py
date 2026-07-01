@@ -1,4 +1,5 @@
 """Application · Use cases — one per ingest endpoint."""
+
 from yvy_server.application.use_cases.ingest_observation import (
     IngestEventUseCase,
     IngestFailure,

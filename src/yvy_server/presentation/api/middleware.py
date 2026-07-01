@@ -16,6 +16,7 @@ The middleware reads ``app.state.settings`` for the supported schemas.
 This means lifespan must have run before the first request — which is
 the FastAPI default behavior.
 """
+
 from __future__ import annotations
 
 import datetime as _dt
@@ -57,8 +58,4 @@ class ServerHeadersMiddleware(BaseHTTPMiddleware):
 
 def _utc_now_iso_ms() -> str:
     """ISO 8601 UTC with millisecond precision and ``Z`` suffix."""
-    return (
-        _dt.datetime.now(_dt.UTC)
-        .isoformat(timespec="milliseconds")
-        .replace("+00:00", "Z")
-    )
+    return _dt.datetime.now(_dt.UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")

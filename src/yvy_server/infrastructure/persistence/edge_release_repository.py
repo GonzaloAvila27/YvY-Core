@@ -10,6 +10,7 @@ Core responsibilities:
 - ``get_current_sync_version``: reads the singleton sync_version for
   inclusion in ingest response headers and ``/edge/sync`` responses.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -50,9 +51,7 @@ class EdgeReleaseRepository:
 
     # ─── Releases ────────────────────────────────────────────────────────
 
-    async def get_latest_active(
-        self, session: AsyncSession
-    ) -> EdgeReleaseORM | None:
+    async def get_latest_active(self, session: AsyncSession) -> EdgeReleaseORM | None:
         """Return the most recently released active release, or None."""
         result = await session.execute(
             select(EdgeReleaseORM)

@@ -4,6 +4,7 @@ Defines the abstract contract that any event publisher must fulfil.
 Implementations live in ``infrastructure/publisher/``. The Protocol
 keeps the application layer decoupled from transport details.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

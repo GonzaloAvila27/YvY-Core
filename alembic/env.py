@@ -14,6 +14,7 @@ A shared ``naming_convention`` on ``MetaData`` produces predictable
 names for indexes, constraints, and foreign keys, which makes downgrades
 and diffs robust.
 """
+
 from __future__ import annotations
 
 import asyncio

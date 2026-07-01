@@ -21,6 +21,7 @@ Payload models match the schema declared by the edge for
 ``schema_version="1.0"`` (see ``YVY_FASE9_Arquitectura_v2.md`` §2.4 and
 the Fase 8.5a empirical observation form).
 """
+
 from __future__ import annotations
 
 from datetime import datetime

@@ -26,6 +26,7 @@ Two distinct ``error_class="SCHEMA"`` cases coexist:
   ``bronze.ingest_failures`` (the server-side DLQ from §6.3 / §11.5).
   Edge agent treats as fatal too.
 """
+
 from __future__ import annotations
 
 from typing import ClassVar

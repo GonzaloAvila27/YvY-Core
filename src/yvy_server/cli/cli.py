@@ -25,6 +25,7 @@ Design notes
   ``deactivate-station`` are out of scope for 9.1; they come if/when
   operational practice demands them.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -75,9 +76,7 @@ def create_station(
         "-n",
         help="Display name (e.g. 'IEA 7 - Cerro Azul').",
     ),
-    description: str | None = typer.Option(
-        None, "--description", help="Free-form description."
-    ),
+    description: str | None = typer.Option(None, "--description", help="Free-form description."),
     location_lat: float | None = typer.Option(
         None,
         "--location-lat",
@@ -158,9 +157,7 @@ def create_station(
         "key_version": 1,
         "key_hmac_hex": key_hmac_hex,
         "name": name,
-        "created_at_utc": now.isoformat(timespec="milliseconds").replace(
-            "+00:00", "Z"
-        ),
+        "created_at_utc": now.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
     }
 
     # Pretty JSON to stdout. ``json.dumps`` ordering follows the dict

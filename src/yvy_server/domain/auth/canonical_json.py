@@ -28,6 +28,7 @@ different bytes for the same input, the spec version constant
 3. Track B (Kafka producer) must be notified through the shared
    ``shared/canonical_json.py`` (if/when the shared repo exists).
 """
+
 from __future__ import annotations
 
 import json

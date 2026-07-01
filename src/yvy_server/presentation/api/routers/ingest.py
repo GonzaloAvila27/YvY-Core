@@ -15,6 +15,7 @@ mechanism — see ``YVY_Core_Spec_Canal_Pull.md`` §5).
 All ingest_log / ingest_failures writes happen inside the use case; the
 handler does not touch repos directly.
 """
+
 from __future__ import annotations
 
 import datetime as _dt
@@ -133,9 +134,7 @@ async def _run_ingest(
 )
 async def ingest_observation(
     request: Request,
-    use_case: Annotated[
-        IngestObservationUseCase, Depends(get_observation_use_case)
-    ],
+    use_case: Annotated[IngestObservationUseCase, Depends(get_observation_use_case)],
 ) -> JSONResponse:
     """Ingest an empirical observation envelope (HMAC-signed)."""
     return await _run_ingest(request, use_case, EmpiricalObservationPayload)

@@ -19,6 +19,7 @@ Revision ID: 0002_edge_releases
 Revises: 0001_init
 Create Date: 2026-06-08
 """
+
 from __future__ import annotations
 
 from collections.abc import Sequence

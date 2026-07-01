@@ -23,6 +23,7 @@ the canonical JSON of ``key_version``, ``nonce``, ``sent_at_utc`` and
 This is distinct from ingest auth (body-based HMAC) and admin auth
 (Bearer token). See ``YVY_Core_Spec_Canal_Pull.md`` §3 for rationale.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -128,7 +129,10 @@ async def _verify_edge_hmac(
         )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"error": "No active credential for this station+key_version", "error_class": "AUTH"},
+            detail={
+                "error": "No active credential for this station+key_version",
+                "error_class": "AUTH",
+            },
         )
 
     # Build canonical JSON and verify HMAC
@@ -183,6 +187,7 @@ def _version_gt(a: str, b: str) -> bool:
     Strips pre-release / build suffixes (``-``, ``+``) before comparing
     so ``"1.0.0-dev"`` sorts equal to ``"1.0.0"`` (not greater).
     """
+
     def _parts(v: str) -> tuple[int, ...]:
         base = v.split("-")[0].split("+")[0]
         try:
@@ -294,7 +299,10 @@ async def edge_download(
     if release is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={"error": f"No active release for filename={filename!r}", "error_class": "SCHEMA"},
+            detail={
+                "error": f"No active release for filename={filename!r}",
+                "error_class": "SCHEMA",
+            },
         )
 
     releases_dir = Path(request.app.state.settings.releases_dir)
@@ -305,13 +313,16 @@ async def edge_download(
             extra={
                 "station_uuid": str(station.station_uuid),
                 "version": release.edge_version,
-                "filename": filename,
+                "package_filename": filename,
                 "path": str(file_path),
             },
         )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={"error": f"Package file not found on disk: {filename}", "error_class": "SERVER"},
+            detail={
+                "error": f"Package file not found on disk: {filename}",
+                "error_class": "SERVER",
+            },
         )
 
     _log.info(
@@ -319,7 +330,7 @@ async def edge_download(
         extra={
             "station_uuid": str(station.station_uuid),
             "version": release.edge_version,
-            "filename": filename,
+            "package_filename": filename,
             "bytes": release.package_size_bytes,
         },
     )

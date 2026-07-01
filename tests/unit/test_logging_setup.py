@@ -3,6 +3,7 @@
 These tests capture log output into an in-memory ``StringIO`` instead
 of stdout so assertions can parse and inspect each emitted line.
 """
+
 from __future__ import annotations
 
 import io
@@ -216,9 +217,7 @@ def test_set_encoded_as_sorted_list(captured_logs: io.StringIO) -> None:
 
 
 def test_frozenset_encoded_as_sorted_list(captured_logs: io.StringIO) -> None:
-    logging.getLogger("yvy.test.fset").info(
-        "s", extra={"schemas": frozenset({"1.1", "1.0"})}
-    )
+    logging.getLogger("yvy.test.fset").info("s", extra={"schemas": frozenset({"1.1", "1.0"})})
     record = _read_one_record(captured_logs)
     assert record["schemas"] == ["1.0", "1.1"]
 

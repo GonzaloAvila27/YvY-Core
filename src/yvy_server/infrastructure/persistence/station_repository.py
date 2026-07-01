@@ -13,6 +13,7 @@ Consumers:
   that the envelope's ``station_uuid`` is known.
 - CLI ``create-station`` calls ``insert`` to register a new IEA.
 """
+
 from __future__ import annotations
 
 from uuid import UUID as PyUUID

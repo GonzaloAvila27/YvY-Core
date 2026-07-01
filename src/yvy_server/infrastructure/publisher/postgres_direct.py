@@ -31,6 +31,7 @@ from any transaction the upstream handler may have. This is deliberate:
 If we ever need full atomicity, we'd pass the handler's session in and
 flush both in one transaction. Out of scope for 9.1.
 """
+
 from __future__ import annotations
 
 from typing import ClassVar

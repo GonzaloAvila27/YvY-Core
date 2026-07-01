@@ -3,6 +3,7 @@
 These tests are pure (no I/O). They don't touch the filesystem ``.env``
 because ``_env_file=None`` is passed to disable that auto-load.
 """
+
 from __future__ import annotations
 
 import os
@@ -133,9 +134,7 @@ def test_db_dsn_no_scheme_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_db_dsn_async_accepted(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv(
-        "YVY_DB_DSN", "postgresql+asyncpg://user:pass@host:5432/dbname"
-    )
+    monkeypatch.setenv("YVY_DB_DSN", "postgresql+asyncpg://user:pass@host:5432/dbname")
     s = _build()
     assert s.db_dsn == "postgresql+asyncpg://user:pass@host:5432/dbname"
 

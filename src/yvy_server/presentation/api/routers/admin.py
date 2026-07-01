@@ -7,6 +7,7 @@ actions) land in 9.2.
 All routes in this router require ``verify_admin_token`` via the
 router-level ``dependencies=[...]`` argument. No per-endpoint repetition.
 """
+
 from __future__ import annotations
 
 import datetime as _dt
@@ -122,9 +123,9 @@ async def admin_failures(
 
     # Count total unresolved for the pagination envelope.
     total_result = await session.execute(
-        select(func.count()).select_from(IngestFailureORM).where(
-            IngestFailureORM.resolved_at.is_(None)
-        )
+        select(func.count())
+        .select_from(IngestFailureORM)
+        .where(IngestFailureORM.resolved_at.is_(None))
     )
     total = int(total_result.scalar_one() or 0)
 

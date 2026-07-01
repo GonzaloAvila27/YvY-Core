@@ -3,6 +3,7 @@
 All are frozen dataclasses — no business logic, just typed containers
 that repositories return and use cases forward to the presentation layer.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -36,7 +37,7 @@ class StationSummary:
     latitude: Decimal | None
     longitude: Decimal | None
     active: bool
-    status: str          # 'online' | 'sync_pending' | 'offline' | 'pending'
+    status: str  # 'online' | 'sync_pending' | 'offline' | 'pending'
     last_sync_at: datetime | None
     last_values: LastValues | None
 

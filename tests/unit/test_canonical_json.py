@@ -16,6 +16,7 @@ If the EDGE side fails the equivalent tests with the same goldens:
 These tests have no dependencies beyond stdlib + pytest + the module
 under test, so they run anywhere without Postgres / Docker.
 """
+
 from __future__ import annotations
 
 import pytest

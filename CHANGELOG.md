@@ -35,6 +35,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed (2026-06-12)
 
+- **`GET /api/v1/edge/updates/{filename}` devolvía HTTP 500 por colisión de key de log** —
+  `edge_download` pasaba `"filename": filename` dentro de `extra={}` en sus logs
+  estructurados. `filename` es un atributo reservado del `LogRecord` de Python → al
+  emitir el log se lanzaba `KeyError`, convirtiéndose en un 500 que rompía la descarga
+  de paquetes OTA. Renombrada la key a `"package_filename"` (el valor no cambia) en los
+  dos puntos afectados: el log de éxito (`update.downloaded`) y el de archivo faltante
+  (`update.download.failed`). Barrido del resto de `src/` confirmó que no hay otras keys
+  reservadas en `extra={}`.
+
+  **Files changed:**
+  - `src/yvy_server/presentation/api/routers/edge.py` — `edge_download`: `filename` →
+    `package_filename` en `_log.info("update.downloaded")` y `_log.error("update.download.failed")`
+
 - **CLOCK error response now includes `skew_seconds`** — `IngestErrorResponse` gains an
   optional `skew_seconds: int | None` field. For CLOCK errors (422) the server now returns
   the measured clock difference (in seconds) in the response body. This aligns the contract

@@ -14,6 +14,7 @@ Why ``app.state`` and not module-level globals?
 - FastAPI's ``Depends`` makes overriding in tests trivial:
   ``app.dependency_overrides[get_observation_use_case] = lambda: mock``.
 """
+
 from __future__ import annotations
 
 import secrets

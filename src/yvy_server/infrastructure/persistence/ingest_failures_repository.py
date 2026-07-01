@@ -33,6 +33,7 @@ Repository scope
 For 9.1 this repo only exposes ``record_failure``. UPDATE operations
 for resolution come in 9.2 with the ``/admin/failures`` endpoints.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -116,9 +117,7 @@ class IngestFailuresRepository:
         )
         return list(result.scalars().all())
 
-    async def get_by_id(
-        self, session: AsyncSession, failure_id: int
-    ) -> IngestFailureORM | None:
+    async def get_by_id(self, session: AsyncSession, failure_id: int) -> IngestFailureORM | None:
         """Return a single DLQ entry by its primary key."""
         result = await session.execute(
             select(IngestFailureORM).where(IngestFailureORM.id == failure_id)

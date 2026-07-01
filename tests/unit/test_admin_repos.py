@@ -6,6 +6,7 @@ fake async session with an in-memory store.
 
 These are pure unit tests — no real DB connection.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -207,10 +208,7 @@ class _FakeListSession:
 
 @pytest.mark.unit
 def test_list_unresolved_returns_all_rows() -> None:
-    rows = [
-        _FakeIngestFailureORM(failure_id=i, resolved=False)
-        for i in range(3)
-    ]
+    rows = [_FakeIngestFailureORM(failure_id=i, resolved=False) for i in range(3)]
     session = _FakeListSession(rows)
     repo = IngestFailuresRepository()
 

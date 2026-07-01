@@ -33,16 +33,18 @@ RUN pip install "poetry==${POETRY_VERSION}"
 WORKDIR /build
 
 # Solo los archivos de dependencies para aprovechar cache de Docker
-COPY pyproject.toml ./
+COPY pyproject.toml README.md ./
 
 # Generar venv en /opt/venv (más fácil de copiar al runtime stage)
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:${PATH}"
 
 # Instalar deps de producción (sin dev). --without dev requiere poetry >= 1.2
-RUN poetry install --only main --no-root --no-cache
+RUN poetry export --only main --without-hashes -f requirements.txt -o /tmp/requirements.txt && \
+    pip install -r /tmp/requirements.txt
 
-# Copiar código y instalar el package en sí
+# Copiar código (el paquete se instala más abajo, DESPUÉS de embed_version,
+# para que _version.py quede incluido en la instalación).
 COPY src/ ./src/
 COPY scripts/ ./scripts/
 COPY README.md ./
@@ -69,7 +71,10 @@ ENV YVY_BUILD_GIT_COMMIT=${GIT_COMMIT} \
 
 RUN python scripts/embed_version.py
 
-RUN poetry install --only main --no-cache
+# Instalar el paquete YVY (sin deps: ya instaladas arriba vía pip).
+# DESPUÉS de embed_version para que _version.py quede embebido.
+# Opción A: sin `poetry install` en el build — poetry solo exporta deps.
+RUN pip install --no-deps .
 
 # ============================================================================
 # Stage 2: runtime

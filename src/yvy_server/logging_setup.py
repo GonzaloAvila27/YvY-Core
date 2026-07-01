@@ -45,6 +45,7 @@ Design notes
 
 See ``YVY_FASE9_Arquitectura_v2.md`` §11.6.
 """
+
 from __future__ import annotations
 
 import datetime as _dt

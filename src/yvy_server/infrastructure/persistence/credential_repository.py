@@ -11,6 +11,7 @@ Consumers:
 - (Future) CLI ``rotate-key`` will call ``insert`` for ``key_version=N+1``
   and a separate ``deactivate(...)`` for the old one (out of scope for 9.1).
 """
+
 from __future__ import annotations
 
 from uuid import UUID as PyUUID

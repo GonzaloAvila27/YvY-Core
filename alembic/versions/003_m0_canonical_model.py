@@ -29,6 +29,7 @@ Revision ID: 0003_m0_canonical_model
 Revises: 0002_edge_releases
 Create Date: 2026-06-15
 """
+
 from __future__ import annotations
 
 import uuid
@@ -45,24 +46,31 @@ depends_on: str | Sequence[str] | None = None
 
 # ─── IEA seed data ───────────────────────────────────────────────────────────
 _IEA_STATIONS = [
-    ("IEA-01", "IEA Nº1 San Ignacio",          "San Ignacio",             -27.2574, -55.5353, False),
-    ("IEA-02", "IEA Nº2 Oberá",                "Oberá",                   -27.4878, -55.1203, False),
-    ("IEA-03", "IEA Nº3 Eldorado",             "Eldorado",                -26.4033, -54.6292, False),
-    ("IEA-04", "IEA Nº4 Bonpland",             "Bonpland",                -27.4820, -55.4640, False),
-    ("IEA-05", "IEA Nº5 Apóstoles",            "Apóstoles",               -27.9156, -55.7551, False),
-    ("IEA-06", "IEA Nº6 Puerto Rico",          "Puerto Rico",             -26.8011, -55.0261, False),
-    ("IEA-07", "IEA Nº7 Garupá",               "Garupá",                  -27.4869, -55.8276, True),
-    ("IEA-08", "IEA Nº8 Montecarlo",           "Montecarlo",              -26.5680, -54.7630, False),
-    ("IEA-09", "IEA Nº9 Aristóbulo del Valle", "Aristóbulo del Valle",    -27.0985, -54.9410, False),
-    ("IEA-10", "IEA Nº10 El Soberbio",         "El Soberbio",             -27.2930, -54.1980, False),
-    ("IEA-11", "IEA Nº11 San Pedro",           "San Pedro",               -26.6230, -54.1080, False),
-    ("IEA-12", "IEA Nº12 Jardín América",      "Jardín América",          -27.0350, -55.2280, False),
-    ("IEA-13", "IEA Nº13 25 de Mayo",          "25 de Mayo",              -27.3730, -54.7410, False),
-    ("IEA-14", "IEA Nº14 Leandro N. Alem",     "Leandro N. Alem",         -27.5980, -55.3220, False),
-    ("IEA-15", "IEA Nº15 Cerro Azul",          "Cerro Azul",              -27.6340, -55.4810, False),
-    ("IEA-16", "IEA Nº16 San Javier",          "San Javier",              -27.8760, -55.1320, False),
-    ("IEA-17", "IEA Nº17 Concepción de la Sierra", "Concepción de la Sierra", -27.9960, -55.5220, False),
-    ("IEA-18", "IEA Nº18 Posadas",             "Posadas",                 -27.3671, -55.8963, False),
+    ("IEA-01", "IEA Nº1 San Ignacio", "San Ignacio", -27.2574, -55.5353, False),
+    ("IEA-02", "IEA Nº2 Oberá", "Oberá", -27.4878, -55.1203, False),
+    ("IEA-03", "IEA Nº3 Eldorado", "Eldorado", -26.4033, -54.6292, False),
+    ("IEA-04", "IEA Nº4 Bonpland", "Bonpland", -27.4820, -55.4640, False),
+    ("IEA-05", "IEA Nº5 Apóstoles", "Apóstoles", -27.9156, -55.7551, False),
+    ("IEA-06", "IEA Nº6 Puerto Rico", "Puerto Rico", -26.8011, -55.0261, False),
+    ("IEA-07", "IEA Nº7 Garupá", "Garupá", -27.4869, -55.8276, True),
+    ("IEA-08", "IEA Nº8 Montecarlo", "Montecarlo", -26.5680, -54.7630, False),
+    ("IEA-09", "IEA Nº9 Aristóbulo del Valle", "Aristóbulo del Valle", -27.0985, -54.9410, False),
+    ("IEA-10", "IEA Nº10 El Soberbio", "El Soberbio", -27.2930, -54.1980, False),
+    ("IEA-11", "IEA Nº11 San Pedro", "San Pedro", -26.6230, -54.1080, False),
+    ("IEA-12", "IEA Nº12 Jardín América", "Jardín América", -27.0350, -55.2280, False),
+    ("IEA-13", "IEA Nº13 25 de Mayo", "25 de Mayo", -27.3730, -54.7410, False),
+    ("IEA-14", "IEA Nº14 Leandro N. Alem", "Leandro N. Alem", -27.5980, -55.3220, False),
+    ("IEA-15", "IEA Nº15 Cerro Azul", "Cerro Azul", -27.6340, -55.4810, False),
+    ("IEA-16", "IEA Nº16 San Javier", "San Javier", -27.8760, -55.1320, False),
+    (
+        "IEA-17",
+        "IEA Nº17 Concepción de la Sierra",
+        "Concepción de la Sierra",
+        -27.9960,
+        -55.5220,
+        False,
+    ),
+    ("IEA-18", "IEA Nº18 Posadas", "Posadas", -27.3671, -55.8963, False),
 ]
 
 
@@ -338,16 +346,16 @@ def upgrade() -> None:
     conn = op.get_bind()
 
     # ── 1. Columnas en public.station ────────────────────────────────────────
-    op.add_column("station", sa.Column("code",     sa.Text(), nullable=True))
+    op.add_column("station", sa.Column("code", sa.Text(), nullable=True))
     op.add_column("station", sa.Column("locality", sa.Text(), nullable=True))
-    op.add_column("station", sa.Column(
-        "province", sa.Text(), nullable=True, server_default="Misiones"
-    ))
-    op.add_column("station", sa.Column("latitude",  sa.Numeric(9, 6), nullable=True))
+    op.add_column(
+        "station", sa.Column("province", sa.Text(), nullable=True, server_default="Misiones")
+    )
+    op.add_column("station", sa.Column("latitude", sa.Numeric(9, 6), nullable=True))
     op.add_column("station", sa.Column("longitude", sa.Numeric(9, 6), nullable=True))
-    op.add_column("station", sa.Column(
-        "active", sa.Boolean(), nullable=False, server_default="true"
-    ))
+    op.add_column(
+        "station", sa.Column("active", sa.Boolean(), nullable=False, server_default="true")
+    )
     op.create_unique_constraint("uq_station_code", "station", ["code"])
     op.create_index("ix_station_active", "station", ["active"])
 
@@ -363,13 +371,19 @@ def upgrade() -> None:
                    :lat, :lon, :active)
                 ON CONFLICT DO NOTHING
             """),
-            {"uuid": uuid.uuid4(), "name": name, "code": code,
-             "locality": locality, "lat": lat, "lon": lon, "active": active},
+            {
+                "uuid": uuid.uuid4(),
+                "name": name,
+                "code": code,
+                "locality": locality,
+                "lat": lat,
+                "lon": lon,
+                "active": active,
+            },
         )
 
     # ── 3. Schemas ───────────────────────────────────────────────────────────
-    for schema in ("canonical", "silver", "gold", "knowledge",
-                   "auth", "exports", "catalog"):
+    for schema in ("canonical", "silver", "gold", "knowledge", "auth", "exports", "catalog"):
         conn.execute(sa.text(f"CREATE SCHEMA IF NOT EXISTS {schema}"))
 
     # ── 4. Extensiones ───────────────────────────────────────────────────────
@@ -377,7 +391,8 @@ def upgrade() -> None:
     conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS vector"))
 
     # PostGIS: latente (sin tablas geoespaciales en M0). Graceful si no está.
-    conn.execute(sa.text("""
+    conn.execute(
+        sa.text("""
         DO $$
         BEGIN
             CREATE EXTENSION IF NOT EXISTS postgis;
@@ -387,27 +402,33 @@ def upgrade() -> None:
                          '(Track Fuentes F7/F8).';
         END;
         $$
-    """))
+    """)
+    )
 
     # ── 5. Tablas canónicas ──────────────────────────────────────────────────
-    conn.execute(sa.text("""
+    conn.execute(
+        sa.text("""
         CREATE TABLE canonical.unit (
             unit_key  text PRIMARY KEY,
             ucum_code text,
             display   text NOT NULL
         )
-    """))
+    """)
+    )
 
-    conn.execute(sa.text("""
+    conn.execute(
+        sa.text("""
         CREATE TABLE canonical.source_type (
             source_type_key text    PRIMARY KEY,
             domain          text    NOT NULL,
             is_ground_truth boolean NOT NULL,
             description     jsonb
         )
-    """))
+    """)
+    )
 
-    conn.execute(sa.text("""
+    conn.execute(
+        sa.text("""
         CREATE TABLE canonical.variable (
             variable_key   text    PRIMARY KEY,
             domain         text    NOT NULL,
@@ -420,9 +441,11 @@ def upgrade() -> None:
             is_derived     boolean NOT NULL DEFAULT false,
             description    jsonb
         )
-    """))
+    """)
+    )
 
-    conn.execute(sa.text("""
+    conn.execute(
+        sa.text("""
         CREATE TABLE canonical.source (
             source_id       uuid    PRIMARY KEY,
             source_type_key text    NOT NULL REFERENCES canonical.source_type,
@@ -433,9 +456,11 @@ def upgrade() -> None:
             created_at      timestamptz NOT NULL DEFAULT now(),
             UNIQUE (source_type_key, external_ref)
         )
-    """))
+    """)
+    )
 
-    conn.execute(sa.text("""
+    conn.execute(
+        sa.text("""
         CREATE TABLE canonical.sensor (
             sensor_id   uuid    PRIMARY KEY,
             source_id   uuid    NOT NULL REFERENCES canonical.source,
@@ -444,9 +469,11 @@ def upgrade() -> None:
             metadata    jsonb,
             active      boolean NOT NULL DEFAULT true
         )
-    """))
+    """)
+    )
 
-    conn.execute(sa.text("""
+    conn.execute(
+        sa.text("""
         CREATE TABLE canonical.indicator (
             indicator_key text PRIMARY KEY,
             domain        text NOT NULL,
@@ -458,10 +485,12 @@ def upgrade() -> None:
             description   jsonb,
             method_doc_url text
         )
-    """))
+    """)
+    )
 
     # ── 6. Seed catálogo canónico ────────────────────────────────────────────
-    conn.execute(sa.text("""
+    conn.execute(
+        sa.text("""
         INSERT INTO canonical.unit (unit_key, ucum_code, display) VALUES
             ('Cel',  'Cel',  '°C'),
             ('pct',  '%',    '%'),
@@ -472,9 +501,11 @@ def upgrade() -> None:
             ('kPa',  'kPa',  'kPa'),
             ('mm',   'mm',   'mm')
         ON CONFLICT DO NOTHING
-    """))
+    """)
+    )
 
-    conn.execute(sa.text("""
+    conn.execute(
+        sa.text("""
         INSERT INTO canonical.source_type
             (source_type_key, domain, is_ground_truth, description) VALUES
             ('weather_station',  'meteorology', true,
@@ -484,9 +515,11 @@ def upgrade() -> None:
             ('human_observation','meteorology', true,
                 '{"es":"Observación empírica humana"}')
         ON CONFLICT DO NOTHING
-    """))
+    """)
+    )
 
-    conn.execute(sa.text("""
+    conn.execute(
+        sa.text("""
         INSERT INTO canonical.variable
             (variable_key, domain, display_name, canonical_unit,
              value_type, physical_min, physical_max, is_derived) VALUES
@@ -511,10 +544,12 @@ def upgrade() -> None:
             ('vpd',                  'meteorology',
              '{"es":"Déficit de presión de vapor"}', 'kPa','float',  0,  15,  true)
         ON CONFLICT DO NOTHING
-    """))
+    """)
+    )
 
     # ── 7. bronze.raw_record (particionado) ──────────────────────────────────
-    conn.execute(sa.text("""
+    conn.execute(
+        sa.text("""
         CREATE TABLE bronze.raw_record (
             record_id      uuid        NOT NULL,
             source_id      uuid        NOT NULL REFERENCES canonical.source,
@@ -527,28 +562,31 @@ def upgrade() -> None:
             ingestion_meta jsonb,
             PRIMARY KEY (record_id, received_at)
         ) PARTITION BY RANGE (received_at)
-    """))
+    """)
+    )
 
-    conn.execute(sa.text(
-        "CREATE TABLE bronze.raw_record_default "
-        "PARTITION OF bronze.raw_record DEFAULT"
-    ))
+    conn.execute(
+        sa.text("CREATE TABLE bronze.raw_record_default " "PARTITION OF bronze.raw_record DEFAULT")
+    )
 
-    conn.execute(sa.text(
-        "CREATE INDEX idx_raw_source_time "
-        "ON bronze.raw_record (source_id, received_at DESC)"
-    ))
-    conn.execute(sa.text(
-        "CREATE INDEX idx_raw_kind "
-        "ON bronze.raw_record (record_kind, received_at DESC)"
-    ))
-    conn.execute(sa.text(
-        "CREATE INDEX idx_raw_observed "
-        "ON bronze.raw_record (observed_at) WHERE observed_at IS NOT NULL"
-    ))
+    conn.execute(
+        sa.text(
+            "CREATE INDEX idx_raw_source_time " "ON bronze.raw_record (source_id, received_at DESC)"
+        )
+    )
+    conn.execute(
+        sa.text("CREATE INDEX idx_raw_kind " "ON bronze.raw_record (record_kind, received_at DESC)")
+    )
+    conn.execute(
+        sa.text(
+            "CREATE INDEX idx_raw_observed "
+            "ON bronze.raw_record (observed_at) WHERE observed_at IS NOT NULL"
+        )
+    )
 
     # ── 8. Backfill station → canonical.source ───────────────────────────────
-    conn.execute(sa.text("""
+    conn.execute(
+        sa.text("""
         INSERT INTO canonical.source
             (source_id, source_type_key, external_ref, name, metadata, active)
         SELECT
@@ -566,19 +604,23 @@ def upgrade() -> None:
             COALESCE(active, true)
         FROM station
         ON CONFLICT (source_type_key, external_ref) DO NOTHING
-    """))
+    """)
+    )
 
     # ── 9. Backfill bronze.*_raw → bronze.raw_record ─────────────────────────
     # Tabla temporal de mapeo station_uuid → source_id
-    conn.execute(sa.text("""
+    conn.execute(
+        sa.text("""
         CREATE TEMP TABLE _station_source_map AS
         SELECT s.station_uuid, c.source_id
         FROM station s
         JOIN canonical.source c ON c.external_ref = s.station_uuid::text
-    """))
+    """)
+    )
 
     # sensor_raw → raw_record
-    conn.execute(sa.text("""
+    conn.execute(
+        sa.text("""
         INSERT INTO bronze.raw_record
             (record_id, source_id, source_type, record_kind, payload,
              schema_version, observed_at, received_at, ingestion_meta)
@@ -598,10 +640,12 @@ def upgrade() -> None:
         FROM bronze.sensor_raw sr
         JOIN _station_source_map m ON m.station_uuid = sr.station_uuid
         ON CONFLICT DO NOTHING
-    """))
+    """)
+    )
 
     # empirical_observation_raw → raw_record
-    conn.execute(sa.text("""
+    conn.execute(
+        sa.text("""
         INSERT INTO bronze.raw_record
             (record_id, source_id, source_type, record_kind, payload,
              schema_version, observed_at, received_at, ingestion_meta)
@@ -618,10 +662,12 @@ def upgrade() -> None:
         FROM bronze.empirical_observation_raw er
         JOIN _station_source_map m ON m.station_uuid = er.station_uuid
         ON CONFLICT DO NOTHING
-    """))
+    """)
+    )
 
     # empirical_event_raw → raw_record
-    conn.execute(sa.text("""
+    conn.execute(
+        sa.text("""
         INSERT INTO bronze.raw_record
             (record_id, source_id, source_type, record_kind, payload,
              schema_version, observed_at, received_at, ingestion_meta)
@@ -638,10 +684,13 @@ def upgrade() -> None:
         FROM bronze.empirical_event_raw ev
         JOIN _station_source_map m ON m.station_uuid = ev.station_uuid
         ON CONFLICT DO NOTHING
-    """))
+    """)
+    )
 
     # ── 10. Verificar backfill ────────────────────────────────────────────────
-    counts = conn.execute(sa.text("""
+    counts = (
+        conn.execute(
+            sa.text("""
         SELECT
             (SELECT COUNT(*) FROM bronze.sensor_raw)              AS old_sensor,
             (SELECT COUNT(*) FROM bronze.raw_record
@@ -652,12 +701,16 @@ def upgrade() -> None:
             (SELECT COUNT(*) FROM bronze.empirical_event_raw)     AS old_ev,
             (SELECT COUNT(*) FROM bronze.raw_record
              WHERE record_kind = 'empirical_event')               AS new_ev
-    """)).mappings().one()
+    """)
+        )
+        .mappings()
+        .one()
+    )
 
     for kind, old_col, new_col in (
-        ("sensor_reading",        "old_sensor", "new_sensor"),
-        ("empirical_observation", "old_obs",    "new_obs"),
-        ("empirical_event",       "old_ev",     "new_ev"),
+        ("sensor_reading", "old_sensor", "new_sensor"),
+        ("empirical_observation", "old_obs", "new_obs"),
+        ("empirical_event", "old_ev", "new_ev"),
     ):
         old, new = counts[old_col], counts[new_col]
         if old != new:
@@ -676,7 +729,8 @@ def upgrade() -> None:
     conn.execute(sa.text("DROP TABLE IF EXISTS bronze.empirical_event_raw"))
 
     # ── 12. Silver.measurement (vacía, particionada — poblada en D1) ──────────
-    conn.execute(sa.text("""
+    conn.execute(
+        sa.text("""
         CREATE TABLE silver.measurement (
             measurement_id   uuid        NOT NULL,
             observation_id   uuid        NOT NULL,
@@ -696,22 +750,29 @@ def upgrade() -> None:
             promotion_version text       NOT NULL,
             PRIMARY KEY (measurement_id, observed_at)
         ) PARTITION BY RANGE (observed_at)
-    """))
-    conn.execute(sa.text(
-        "CREATE TABLE silver.measurement_default "
-        "PARTITION OF silver.measurement DEFAULT"
-    ))
-    conn.execute(sa.text(
-        "CREATE INDEX idx_meas_source_var_time "
-        "ON silver.measurement (source_id, variable_key, observed_at DESC)"
-    ))
-    conn.execute(sa.text(
-        "CREATE INDEX idx_meas_var_time "
-        "ON silver.measurement (variable_key, observed_at DESC)"
-    ))
+    """)
+    )
+    conn.execute(
+        sa.text(
+            "CREATE TABLE silver.measurement_default " "PARTITION OF silver.measurement DEFAULT"
+        )
+    )
+    conn.execute(
+        sa.text(
+            "CREATE INDEX idx_meas_source_var_time "
+            "ON silver.measurement (source_id, variable_key, observed_at DESC)"
+        )
+    )
+    conn.execute(
+        sa.text(
+            "CREATE INDEX idx_meas_var_time "
+            "ON silver.measurement (variable_key, observed_at DESC)"
+        )
+    )
 
     # ── 13. Gold.indicator_value (vacía, particionada — poblada en D3) ────────
-    conn.execute(sa.text("""
+    conn.execute(
+        sa.text("""
         CREATE TABLE gold.indicator_value (
             id             bigserial   NOT NULL,
             indicator_key  text        NOT NULL REFERENCES canonical.indicator,
@@ -727,14 +788,17 @@ def upgrade() -> None:
             inputs_snapshot jsonb,
             PRIMARY KEY (id, valid_at)
         ) PARTITION BY RANGE (valid_at)
-    """))
-    conn.execute(sa.text(
-        "CREATE TABLE gold.indicator_value_default "
-        "PARTITION OF gold.indicator_value DEFAULT"
-    ))
+    """)
+    )
+    conn.execute(
+        sa.text(
+            "CREATE TABLE gold.indicator_value_default " "PARTITION OF gold.indicator_value DEFAULT"
+        )
+    )
 
     # ── 14. Knowledge.* (vacías — pobladas en Track IA) ──────────────────────
-    conn.execute(sa.text("""
+    conn.execute(
+        sa.text("""
         CREATE TABLE knowledge.document (
             document_id  uuid  PRIMARY KEY,
             source_id    uuid  REFERENCES canonical.source,
@@ -748,8 +812,10 @@ def upgrade() -> None:
             metadata     jsonb,
             ingested_at  timestamptz NOT NULL DEFAULT now()
         )
-    """))
-    conn.execute(sa.text("""
+    """)
+    )
+    conn.execute(
+        sa.text("""
         CREATE TABLE knowledge.chunk (
             chunk_id    uuid    PRIMARY KEY,
             document_id uuid    NOT NULL REFERENCES knowledge.document,
@@ -759,8 +825,10 @@ def upgrade() -> None:
             metadata    jsonb,
             UNIQUE (document_id, chunk_index)
         )
-    """))
-    conn.execute(sa.text("""
+    """)
+    )
+    conn.execute(
+        sa.text("""
         CREATE TABLE knowledge.embedding (
             chunk_id      uuid  PRIMARY KEY REFERENCES knowledge.chunk,
             model         text  NOT NULL,
@@ -769,8 +837,10 @@ def upgrade() -> None:
             embedding     vector,
             created_at    timestamptz NOT NULL DEFAULT now()
         )
-    """))
-    conn.execute(sa.text("""
+    """)
+    )
+    conn.execute(
+        sa.text("""
         CREATE TABLE knowledge.entity (
             entity_id     uuid PRIMARY KEY,
             entity_type   text NOT NULL,
@@ -778,17 +848,21 @@ def upgrade() -> None:
             name          jsonb,
             metadata      jsonb
         )
-    """))
-    conn.execute(sa.text("""
+    """)
+    )
+    conn.execute(
+        sa.text("""
         CREATE TABLE knowledge.chunk_entity (
             chunk_id  uuid REFERENCES knowledge.chunk,
             entity_id uuid REFERENCES knowledge.entity,
             PRIMARY KEY (chunk_id, entity_id)
         )
-    """))
+    """)
+    )
 
     # ── 15. Auth.* (vacías — pobladas en D8) ──────────────────────────────────
-    conn.execute(sa.text("""
+    conn.execute(
+        sa.text("""
         CREATE TABLE auth.organization (
             org_id        uuid PRIMARY KEY,
             name          text NOT NULL,
@@ -797,8 +871,10 @@ def upgrade() -> None:
             created_at    timestamptz NOT NULL DEFAULT now(),
             active        boolean NOT NULL DEFAULT true
         )
-    """))
-    conn.execute(sa.text("""
+    """)
+    )
+    conn.execute(
+        sa.text("""
         CREATE TABLE auth.api_key (
             key_id           uuid PRIMARY KEY,
             org_id           uuid NOT NULL REFERENCES auth.organization,
@@ -814,8 +890,10 @@ def upgrade() -> None:
             expires_at       timestamptz,
             revoked_at       timestamptz
         )
-    """))
-    conn.execute(sa.text("""
+    """)
+    )
+    conn.execute(
+        sa.text("""
         CREATE TABLE auth.dataset_permission (
             permission_id bigserial PRIMARY KEY,
             org_id        uuid NOT NULL REFERENCES auth.organization,
@@ -825,8 +903,10 @@ def upgrade() -> None:
             granted_at    timestamptz NOT NULL DEFAULT now(),
             expires_at    timestamptz
         )
-    """))
-    conn.execute(sa.text("""
+    """)
+    )
+    conn.execute(
+        sa.text("""
         CREATE TABLE auth.usage_log (
             id             bigserial   NOT NULL,
             key_id         uuid        NOT NULL,
@@ -840,14 +920,15 @@ def upgrade() -> None:
             occurred_at    timestamptz NOT NULL DEFAULT now(),
             PRIMARY KEY (id, occurred_at)
         ) PARTITION BY RANGE (occurred_at)
-    """))
-    conn.execute(sa.text(
-        "CREATE TABLE auth.usage_log_default "
-        "PARTITION OF auth.usage_log DEFAULT"
-    ))
+    """)
+    )
+    conn.execute(
+        sa.text("CREATE TABLE auth.usage_log_default " "PARTITION OF auth.usage_log DEFAULT")
+    )
 
     # ── 16. Exports.* (vacías — pobladas en D5) ───────────────────────────────
-    conn.execute(sa.text("""
+    conn.execute(
+        sa.text("""
         CREATE TABLE exports.job (
             export_id   uuid PRIMARY KEY,
             org_id      uuid REFERENCES auth.organization,
@@ -866,10 +947,12 @@ def upgrade() -> None:
             expires_at  timestamptz,
             error       text
         )
-    """))
+    """)
+    )
 
     # ── 17. Catalog.* (vacío — poblado en D7) ────────────────────────────────
-    conn.execute(sa.text("""
+    conn.execute(
+        sa.text("""
         CREATE TABLE catalog.dataset (
             dataset_id    text PRIMARY KEY,
             title         jsonb NOT NULL,
@@ -883,7 +966,8 @@ def upgrade() -> None:
             created_at    timestamptz NOT NULL DEFAULT now(),
             updated_at    timestamptz NOT NULL DEFAULT now()
         )
-    """))
+    """)
+    )
 
     # ── 18. Views re-apuntadas (C10 v3) ──────────────────────────────────────
     op.execute(_V_STATION_SUMMARY_DROP)
@@ -900,8 +984,7 @@ def downgrade() -> None:
     op.execute(_V_NETWORK_STATUS_DROP)
 
     # Drop schemas nuevos (CASCADE elimina todas sus tablas)
-    for schema in ("catalog", "exports", "auth", "knowledge",
-                   "gold", "silver", "canonical"):
+    for schema in ("catalog", "exports", "auth", "knowledge", "gold", "silver", "canonical"):
         conn.execute(sa.text(f"DROP SCHEMA IF EXISTS {schema} CASCADE"))
 
     # Drop bronze.raw_record (particionada)
