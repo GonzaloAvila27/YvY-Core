@@ -26,7 +26,6 @@ from fastapi.responses import JSONResponse
 
 from yvy_server.application.use_cases import (
     IngestEventUseCase,
-    IngestFailure,
     IngestObservationUseCase,
     IngestSensorUseCase,
     IngestSuccess,

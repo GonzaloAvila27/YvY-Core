@@ -20,7 +20,6 @@ from yvy_server.logging_setup import (
     setup_logging,
 )
 
-
 # ─── Fixtures ────────────────────────────────────────────────────────────
 
 

@@ -14,7 +14,7 @@ import hashlib
 import hmac
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -29,7 +29,6 @@ from yvy_server.application.use_cases import (
 from yvy_server.domain.auth import canonicalize
 from yvy_server.domain.ingest import EntityType
 from yvy_server.domain.station import Station, StationCredential
-
 
 # ─── Fakes ────────────────────────────────────────────────────────────────
 
@@ -165,7 +164,7 @@ def _make_envelope(payload: dict, event_id: UUID | None = None) -> dict:
     }
     env["signature"] = hmac.new(
         _KEY_BYTES,
-        canonicalize({k: v for k, v in env.items()}),
+        canonicalize(dict(env)),
         hashlib.sha256,
     ).hexdigest()
     return env

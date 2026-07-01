@@ -13,7 +13,6 @@ from pydantic import SecretStr, ValidationError
 
 from yvy_server.config import Settings, get_settings
 
-
 # A "strong" token used in tests where the production check must pass.
 # 48 chars, no "CHANGE_ME" substring.
 STRONG_TOKEN = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUV"

@@ -11,7 +11,6 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, datetime
 from typing import Any
-from uuid import uuid4
 
 import pytest
 
@@ -19,10 +18,8 @@ from yvy_server.infrastructure.persistence.ingest_failures_repository import (
     IngestFailuresRepository,
 )
 from yvy_server.infrastructure.persistence.ingest_log_repository import (
-    IngestLogRepository,
     IngestStats,
 )
-
 
 # ─── Fake session / ORM ──────────────────────────────────────────────────
 

@@ -36,7 +36,6 @@ import shutil
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 from uuid import UUID, uuid4
 
 import typer
@@ -75,25 +74,25 @@ def create_station(
         "-n",
         help="Display name (e.g. 'IEA 7 - Cerro Azul').",
     ),
-    description: Optional[str] = typer.Option(
+    description: str | None = typer.Option(
         None, "--description", help="Free-form description."
     ),
-    location_lat: Optional[float] = typer.Option(
+    location_lat: float | None = typer.Option(
         None,
         "--location-lat",
         help="Latitude in decimal degrees (south is negative).",
     ),
-    location_lon: Optional[float] = typer.Option(
+    location_lon: float | None = typer.Option(
         None,
         "--location-lon",
         help="Longitude in decimal degrees (west is negative).",
     ),
-    location_name: Optional[str] = typer.Option(
+    location_name: str | None = typer.Option(
         None,
         "--location-name",
         help="Human-readable location (e.g. 'Cerro Azul, Misiones').",
     ),
-    output_file: Optional[Path] = typer.Option(
+    output_file: Path | None = typer.Option(
         None,
         "--output-file",
         "-o",
@@ -141,7 +140,7 @@ def create_station(
                 created_at=now,
             )
         )
-    except Exception as err:  # noqa: BLE001 — top-level CLI handler
+    except Exception as err:
         log.exception(
             "create_station failed",
             extra={"display_name": name, "station_uuid": str(station_uuid)},
@@ -196,10 +195,10 @@ async def _persist_station(
     settings,  # Settings (avoid import cycle in type hint)
     station_uuid: UUID,
     name: str,
-    description: Optional[str],
-    location_lat: Optional[float],
-    location_lon: Optional[float],
-    location_name: Optional[str],
+    description: str | None,
+    location_lat: float | None,
+    location_lon: float | None,
+    location_name: str | None,
     key_hmac_hex: str,
     created_at: datetime,
 ) -> None:
@@ -267,13 +266,13 @@ def publish_update(
         "--min-edge-version",
         help="Minimum Edge version from which this update can be safely applied.",
     ),
-    notes: Optional[str] = typer.Option(
+    notes: str | None = typer.Option(
         None,
         "--notes",
         "-n",
         help="Human-readable release notes (shown in the Edge UI).",
     ),
-    releases_dir: Optional[Path] = typer.Option(
+    releases_dir: Path | None = typer.Option(
         None,
         "--releases-dir",
         help=(
@@ -339,7 +338,7 @@ def publish_update(
                 released_at=now,
             )
         )
-    except Exception as err:  # noqa: BLE001 — top-level CLI handler
+    except Exception as err:
         log.exception(
             "publish_update failed",
             extra={"edge_version": edge_version, "filename": dest_filename},
@@ -387,7 +386,7 @@ async def _persist_release(
     package_sha256: str,
     package_size_bytes: int,
     min_edge_version: str,
-    notes: Optional[str],
+    notes: str | None,
     released_at: datetime,
 ) -> None:
     """Open an engine, insert the release + bump sync_version atomically, dispose."""
