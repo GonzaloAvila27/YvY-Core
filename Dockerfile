@@ -43,12 +43,11 @@ ENV PATH="/opt/venv/bin:${PATH}"
 RUN poetry export --only main --without-hashes -f requirements.txt -o /tmp/requirements.txt && \
     pip install -r /tmp/requirements.txt
 
-# Copiar código y instalar el package en sí
+# Copiar código (el paquete se instala más abajo, DESPUÉS de embed_version,
+# para que _version.py quede incluido en la instalación).
 COPY src/ ./src/
 COPY scripts/ ./scripts/
 COPY README.md ./
-
-RUN pip install --no-deps .
 
 # ─── Inyectar versión desde build args (no copiamos .git al image) ───
 # El CI/build script extrae estos valores de git y los pasa con
@@ -72,7 +71,10 @@ ENV YVY_BUILD_GIT_COMMIT=${GIT_COMMIT} \
 
 RUN python scripts/embed_version.py
 
-RUN poetry install --only main --no-cache
+# Instalar el paquete YVY (sin deps: ya instaladas arriba vía pip).
+# DESPUÉS de embed_version para que _version.py quede embebido.
+# Opción A: sin `poetry install` en el build — poetry solo exporta deps.
+RUN pip install --no-deps .
 
 # ============================================================================
 # Stage 2: runtime
