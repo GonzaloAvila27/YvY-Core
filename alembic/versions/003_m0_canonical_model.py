@@ -23,7 +23,7 @@ Qué hace:
 Downgrade (para CI roundtrip testing):
   - Dropa views nuevas.
   - Dropa schemas nuevos (CASCADE).
-  - Recrea bronze.*_raw vacías y views apuntando a ellas.
+  - Recrea bronze.*_raw vacías (estado 0002 — SIN views: en 0002 no existían).
   - Dropa columnas de public.station.
 
 Revision ID: 0003_m0_canonical_model
@@ -256,90 +256,6 @@ CREATE TABLE IF NOT EXISTS bronze.empirical_event_raw (
     kafka_offset     bigint,
     kafka_published_at timestamptz
 )
-"""
-
-_V_STATION_SUMMARY_V2 = """
-CREATE OR REPLACE VIEW v_station_summary AS
-WITH latest_raw AS (
-  SELECT DISTINCT ON (station_uuid)
-    station_uuid, payload, received_at
-  FROM bronze.sensor_raw
-  ORDER BY station_uuid, received_at DESC
-)
-SELECT
-  s.station_uuid,
-  s.code,
-  s.name,
-  s.locality,
-  s.province,
-  s.latitude,
-  s.longitude,
-  s.active,
-  lr.received_at AS last_sync_at,
-  CASE
-    WHEN lr.received_at IS NULL                          THEN 'pending'
-    WHEN lr.received_at >= now() - interval '15 minutes' THEN 'online'
-    WHEN lr.received_at >= now() - interval '2 hours'    THEN 'sync_pending'
-    ELSE                                                      'offline'
-  END AS status,
-  CASE
-    WHEN lr.payload IS NULL THEN NULL
-    ELSE jsonb_build_object(
-      'temp',          (lr.payload->>'temp_outdoor')::numeric,
-      'humidity',      (lr.payload->>'hum_outdoor')::int,
-      'pressure',      (lr.payload->>'pressure_rel')::numeric,
-      'windSpeed',     (lr.payload->>'wind_speed')::numeric,
-      'windGust',      (lr.payload->>'wind_gust')::numeric,
-      'windDirection', (lr.payload->>'wind_dir')::numeric,
-      'timestamp',     lr.received_at
-    )
-  END AS last_values
-FROM station s
-LEFT JOIN latest_raw lr ON lr.station_uuid = s.station_uuid
-"""
-
-_V_NETWORK_STATUS_V2 = """
-CREATE OR REPLACE VIEW v_network_status AS
-WITH
-  active_stations AS (SELECT station_uuid FROM station WHERE active = true),
-  recent_syncs    AS (SELECT DISTINCT station_uuid FROM bronze.sensor_raw
-                      WHERE received_at >= now() - interval '15 minutes'),
-  synced_2h       AS (SELECT DISTINCT station_uuid FROM bronze.sensor_raw
-                      WHERE received_at >= now() - interval '2 hours'),
-  last_sync       AS (SELECT MAX(received_at) AS max_received_at FROM bronze.sensor_raw),
-  total_records   AS (
-    SELECT (SELECT COUNT(*) FROM bronze.sensor_raw) +
-           (SELECT COUNT(*) FROM bronze.empirical_observation_raw) AS n
-  ),
-  localities AS (
-    SELECT COUNT(DISTINCT locality) AS cnt FROM station
-    WHERE active = true AND locality IS NOT NULL
-      AND station_uuid IN (SELECT station_uuid FROM synced_2h)
-  ),
-  uptime AS (
-    SELECT ROUND(COUNT(DISTINCT b.bucket)::numeric /
-                 NULLIF(COUNT(DISTINCT g.bucket), 0), 4) AS ratio
-    FROM (SELECT generate_series(date_trunc('minute', now() - interval '30 days'),
-                                 date_trunc('minute', now()),
-                                 '5 minutes'::interval) AS bucket) g
-    LEFT JOIN (
-      SELECT date_trunc('minute', received_at) -
-             (EXTRACT(MINUTE FROM received_at)::int % 5) * interval '1 minute' AS bucket
-      FROM bronze.sensor_raw WHERE received_at >= now() - interval '30 days'
-    ) b ON b.bucket = g.bucket
-  )
-SELECT
-  (SELECT COUNT(*) FROM active_stations)::int   AS total_nodes,
-  (SELECT COUNT(*) FROM recent_syncs
-   WHERE station_uuid IN (SELECT station_uuid FROM active_stations))::int AS active_nodes,
-  (SELECT COUNT(*) FROM active_stations
-   WHERE station_uuid NOT IN (SELECT station_uuid FROM synced_2h))::int AS offline_nodes,
-  (SELECT COUNT(*) FROM station WHERE active = false)::int AS pending_nodes,
-  (SELECT n FROM total_records)::bigint          AS total_records,
-  (SELECT cnt FROM localities)::int              AS localities_count,
-  EXTRACT(EPOCH FROM (now() - (SELECT max_received_at FROM last_sync)))::int AS last_sync_seconds,
-  COALESCE((SELECT ratio FROM uptime), 0)        AS uptime_30d,
-  now()                                          AS generated_at
 """
 
 
@@ -979,9 +895,17 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """Revierte al estado exacto de la revisión 0002.
+
+    En 0002 NO existían views (C10 entró fundida en esta migración), por
+    eso acá no se recrea ninguna: recrear las views "v2" dependientes de
+    las columnas C10 de station hacía fallar el drop_column posterior
+    (DependentObjectsStillExistError — detectado por el roundtrip de CI
+    el 13-jul-2026).
+    """
     conn = op.get_bind()
 
-    # Drop views canónicas
+    # Drop views canónicas (introducidas por esta migración)
     op.execute(_V_STATION_SUMMARY_DROP)
     op.execute(_V_NETWORK_STATUS_DROP)
 
@@ -989,19 +913,15 @@ def downgrade() -> None:
     for schema in ("catalog", "exports", "auth", "knowledge", "gold", "silver", "canonical"):
         conn.execute(sa.text(f"DROP SCHEMA IF EXISTS {schema} CASCADE"))
 
-    # Drop bronze.raw_record (particionada)
+    # Drop bronze.raw_record
     conn.execute(sa.text("DROP TABLE IF EXISTS bronze.raw_record CASCADE"))
 
-    # Recrear tablas bronze viejas vacías (para coherencia de schema en CI)
+    # Recrear tablas bronze viejas vacías (estado 0002)
     conn.execute(sa.text(_RECREATE_SENSOR_RAW))
     conn.execute(sa.text(_RECREATE_EMPIRICAL_OBS_RAW))
     conn.execute(sa.text(_RECREATE_EMPIRICAL_EVENT_RAW))
 
-    # Recrear views apuntando a las tablas viejas
-    op.execute(_V_STATION_SUMMARY_V2)
-    op.execute(_V_NETWORK_STATUS_V2)
-
-    # Drop columnas de public.station
+    # Drop columnas de public.station (nada depende ya de ellas)
     op.drop_index("ix_station_active", table_name="station")
     op.drop_constraint("uq_station_code", "station", type_="unique")
     op.drop_column("station", "active")
