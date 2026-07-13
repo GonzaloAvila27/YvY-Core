@@ -7,6 +7,65 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed (2026-07-07 — E0: bloqueantes del deploy M0, `plan_fases_api`)
+
+Hallazgos críticos de la auditoría de código del 07-jul (ver
+`docs/RUNBOOK_DESPLIEGUE_M0_DQS_WEBCORE_2026-07-07.md` §E0). Ninguno era
+observable en producción (que corre pre-M0); todos rompían la ingesta apenas
+se aplicara la migración 003.
+
+- **QW1 — `bronze.raw_record` sin particionar (decisión D-1).** La tabla
+  particionada por `received_at` obligaba a `PRIMARY KEY (record_id, received_at)`,
+  con dos consecuencias fatales: (a) `ON CONFLICT (record_id)` es inválido sin un
+  índice único sobre `record_id` solo (imposible en tabla particionada por otra
+  columna) → **error 42P10 en CADA insert** → toda la ingesta devolvía 500 post-M0;
+  (b) aún corrigiendo el conflict target, un reenvío del mismo `event_id` con otro
+  `received_at` insertaba fila duplicada (idempotencia rota). Fix: `raw_record`
+  como tabla normal con `PK (record_id)` — el particionado se reintroduce cuando
+  el volumen lo justifique (≥6 IEAs).
+  - `alembic/versions/003_m0_canonical_model.py` — DDL de `raw_record` (§7)
+  - `src/yvy_server/infrastructure/db/models.py` — docstring `RawRecordORM`
+
+- **QW2 — `create-station` crea el `canonical.source` en la misma transacción.**
+  Post-M0 la ingesta resuelve `station_uuid → source_id`; sin la fila en
+  `canonical.source` toda estación nueva quedaba registrada pero **incapaz de
+  ingestar** (LookupError → 500). Requisito del RUNBOOK_CICDv3 §5 que no se había
+  implementado. Metadata con el mismo shape que el backfill de la 003.
+  - `src/yvy_server/cli/cli.py` — `_persist_station`
+
+- **QW3 — `raw_record.observed_at` sale del payload, no del envelope.** El upsert
+  escribía `sent_at_utc` (momento de envío) mientras el backfill de la 003 usa
+  `payload->>'observed_at_utc'` (momento de observación) → semántica mezclada que
+  envenenaba Silver (D1) desde el día 1. Fix: extraer `observed_at_utc` /
+  `observed_at` del payload (fallback `sent_at_utc`; naive → UTC).
+  - `src/yvy_server/infrastructure/persistence/bronze_repository.py` —
+    `_extract_observed_at()`
+
+- **QW4 — Envelope con campos presentes pero malformados → 400 SCHEMA, no 500.**
+  `station_uuid="banana"`, `key_version="x"` o `sent_at_utc` no-ISO lanzaban
+  `ValueError` crudo que escapaba como 500 SERVER → el Edge lo reintentaba para
+  siempre (mensaje veneno). Fix: coerciones envueltas → `EnvelopeShapeError`
+  (400 SCHEMA → DLQ inmediato en el Edge). +7 unit tests
+  (`TestMalformedFieldValues`).
+  - `src/yvy_server/application/auth/envelope_validator.py` — `validate()`,
+    `check_clock_skew()`
+
+### Added (2026-07-07)
+
+- **QW6 — Suite de integración E2E** (`tests/integration/test_ingest_e2e.py`):
+  contra Postgres real migrado a head (el CI ya levanta pgvector/pg16): estación
+  creada vía CLI real → envelope firmado HMAC → `inserted` → `duplicate` (una
+  sola fila), `observed_at` desde payload, firma adulterada → 401, campo
+  malformado → 400, payload inválido post-HMAC → DLQ. Skip limpio si no hay DB
+  local. Es el test que habría detectado QW1 antes de escribirse este changelog.
+
+- **Documentación de auditoría (07-jul):** `docs/AUDITORIA_SERVIDOR_M-1_2026-07-07.md`
+  (runbook reproducible), `docs/AUDITORIA_SERVIDOR_M-1_RESULTADO_2026-07-07.md`
+  (evidencia y veredictos H1-H11), `docs/RUNBOOK_DESPLIEGUE_M0_DQS_WEBCORE_2026-07-07.md`
+  (runbook maestro E0→E4, reemplaza operativamente a PLAN_APLICACION_SERVIDOR).
+  `RUNBOOK_M0_INSTALL.md` marcado SUPERSEDIDO (comandos con poetry/usuario/URLs
+  incorrectos).
+
 ### Fixed (2026-06-16 — CI/CD pre-checks `plan_fases_api`)
 
 - **ruff** — 28 lint errors eliminated: import ordering (`I001`), unsorted `__all__`

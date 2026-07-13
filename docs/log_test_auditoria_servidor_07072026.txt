@@ -1,0 +1,1486 @@
+Diagnostico 07/07/2026 YVY Core-  segun auditoria_servidor_M-1
+
+keter@yvy-server:~$ ls -la /opt/yvy-server/
+total 64
+drwxr-xr-x 12 yvyadmin docker          4096 jun 26 20:10 .
+drwxr-xr-x  4 root     root            4096 may 27 18:46 ..
+drwxr-xr-x  2 yvyadmin docker          4096 jul  7 03:00 backups
+-rw-r--r--  1 yvyadmin docker           203 jun 17 15:30 current_version.txt
+drwxr-xr-x  4      999 systemd-journal 4096 jun 10 15:47 data
+drwxr-xr-x  3 yvyadmin docker          4096 jun 10 15:23 date
+-rw-r--r--  1 yvyadmin docker          3197 jun 18 16:32 docker-compose.yml
+-rw-r-----  1 yvyadmin docker           967 jun  3 16:21 .env
+drwxr-xr-x  4 yvyadmin docker          4096 jun  3 17:18 logs
+drwxr-xr-x  4 yvyadmin docker          4096 may 27 18:47 nginx
+drwxr-xr-x  2 yvyadmin yvyadmin        4096 jun 26 20:10 postgres
+-rw-r--r--  1 yvyadmin docker          1063 may 27 18:51 README.md
+drwxr-xr-x  2 yvyadmin docker          4096 jun 12 20:58 scripts
+drwxr-x---  2 yvyadmin docker          4096 jun  8 15:52 secrets
+drwxr-xr-x  2 yvyadmin docker          4096 may 27 18:47 server
+drwxr-xr-x 10 yvyadmin docker          4096 jun 25 10:59 server-code
+
+keter@yvy-server:~$ keter@yvy-server:~$ cd /opt/yvy-server/server-code/ && pwd && ls
+/opt/yvy-server/server-code
+alembic      CHANGELOG.md        docker-entrypoint.sh  docs   pyproject.toml  scripts  tests
+alembic.ini  docker-compose.yml  Dockerfile            nginx  README.md       src
+
+keter@yvy-server:/opt/yvy-server/server-code$ git config --global --add safe.directory /opt/yvy-server/server-code
+keter@yvy-server:/opt/yvy-server/server-code$ git remote -v
+origin  git@github.com:GonzaloAvila27/YvY-Core.git (fetch)
+origin  git@github.com:GonzaloAvila27/YvY-Core.git (push)
+
+keter@yvy-server:/opt/yvy-server/server-code$ git branch -v
+  core-prod-actual 5badbeb chore(build) Dockerfile en produccion (poetry export + pipinstall) estado real del server para evaluacion
+* master           736e707 [delante 1, detrás 4] fix(edge): rename reserved LogRecord key 'filename' -> 'package_filename' (500 en GET /edge/updates)
+
+keter@yvy-server:/opt/yvy-server/server-code$ git rev-parse HEAD
+736e7077df3c11f8e3770dc7372380b5299863eb
+keter@yvy-server:/opt/yvy-server/server-code$ git rev-parse --short HEAD
+736e707
+
+keter@yvy-server:/opt/yvy-server/server-code$ git log --oneline -10
+736e707 (HEAD -> master) fix(edge): rename reserved LogRecord key 'filename' -> 'package_filename' (500 en GET /edge/updates)
+46dcee9 Merge pull request #14 from GonzaloAvila27/feat/github-actions
+cd9c15c correct ci.yml
+e12479b Merge pull request #13 from GonzaloAvila27/feat/github-actions
+ca660c5 Add CI & add badge in README
+8cd8b06 feat: agregar nginx + TLS (Let's Encrypt) al stack Docker
+21883fd docs: corregir smoke tests — HTTP:8000 directo, sin nginx/TLS todavía
+24c87bd docs: actualizar RUNBOOK_FASE92 a v1.1 con fixes de compatibilidad y smoke robusto
+bbe8291 fix: alinear schemas con contrato Edge y propagar skew_seconds en CLOCK errors
+efc2653 fix: observer_id opcional en EmpiricalObservationPayload
+
+keter@yvy-server:/opt/yvy-server/server-code$ git describe --tags --always
+736e707
+
+keter@yvy-server:/opt/yvy-server/server-code$ git tag -l
+keter@yvy-server:/opt/yvy-server/server-code$
+
+git fetch origin --dry-run  
+git fetch origin 
+ --> para git fetch tengo que logear en yvyadmin - es correcto - 
+
+keter@yvy-server:/opt/yvy-server/server-code$ git status
+En la rama master
+Tu rama y 'origin/master' han divergido,
+y tienen 1 y 4 commits diferentes cada una respectivamente.
+  (usa "git pull" para fusionar la rama remota en la tuya)
+
+nada para hacer commit, el árbol de trabajo está limpio
+
+keter@yvy-server:/opt/yvy-server/server-code$ git log --oneline origin/master..HEAD
+736e707 (HEAD -> master) fix(edge): rename reserved LogRecord key 'filename' -> 'package_filename' (500 en GET /edge/updates)
+
+
+keter@yvy-server:/opt/yvy-server/server-code$ git log --oneline HEAD..origin/master
+ea02125 (origin/master, origin/HEAD) Merge pull request #16 from GonzaloAvila27/feat/m0
+2b0ca67 (origin/feat/m0) update docker files to include pg extentions
+ae36b81 Merge pull request #15 from GonzaloAvila27/feat/github-actions
+765f6d6 (origin/feat/github-actions) update ci.yml
+
+keter@yvy-server:/opt/yvy-server/server-code$ git status --porcelain
+keter@yvy-server:/opt/yvy-server/server-code$ git diff --stat
+keter@yvy-server:/opt/yvy-server/server-code$ git diff Dockerfile
+keter@yvy-server:/opt/yvy-server/server-code$ git worktree list
+/opt/yvy-server/server-code  736e707 [master]
+keter@yvy-server:/opt/yvy-server/server-code$ git submodule status
+keter@yvy-server:/opt/yvy-server/server-code$
+
+
+keter@yvy-server:/opt/yvy-server/server-code$ cat /opt/yvy-server/current_version.txt
+deployed_at: 2026-06-17T15:30:45-03:00
+git_commit: 46dcee9011862581658ebfb8d56e59445e4aa3c1
+git_branch: master
+deployed_by: yvyadmin
+backup_pre_deploy: /opt/yvy-server/backups/yvy_20260617_030001.sql.gz
+
+
+keter@yvy-server:/opt/yvy-server$ docker compose ps
+NAME           IMAGE                 COMMAND                  SERVICE    CREATED        STATUS                  PORTS
+yvy-api        yvy-server-yvy-api    "docker-entrypoint.s…"   yvy-api    17 hours ago   Up 17 hours (healthy)   8000/tcp
+yvy-nginx      nginx:1.27-alpine     "/docker-entrypoint.…"   nginx      17 hours ago   Up 17 hours             0.0.0.0:80->80/tcp, [::]:80->80/tcp, 0.0.0.0:443->443/tcp, [::]:443->443/tcp
+yvy-postgres   yvy-server-postgres   "docker-entrypoint.s…"   postgres   17 hours ago   Up 17 hours (healthy)   5432/tcp
+keter@yvy-server:/opt/yvy-server$
+
+keter@yvy-server:/opt/yvy-server$ docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}'
+NAMES          IMAGE                 STATUS                  PORTS
+yvy-nginx      nginx:1.27-alpine     Up 17 hours             0.0.0.0:80->80/tcp, [::]:80->80/tcp, 0.0.0.0:443->443/tcp, [::]:443->443/tcp
+yvy-api        yvy-server-yvy-api    Up 17 hours (healthy)   8000/tcp
+yvy-postgres   yvy-server-postgres   Up 17 hours (healthy)   5432/tcp
+ ---se ve que corto la luz..
+
+
+keter@yvy-server:/opt/yvy-server$ docker images --format 'table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedAt}}\t{{.Size}}'
+er inspect --format '{{.Image}}' yvy-postgres) \
+  --format 'Created={{.Created}} Digest={{index .RepoDigests 0}}'REPOSITORY            TAG           IMAGE ID       CREATED AT                      SIZE
+yvy-server-yvy-api    latest        94e13d1cc4f0   2026-06-24 22:36:50 -0300 -03   344MB
+yvy-server-postgres   latest        5a26f9716bd4   2026-06-22 19:15:16 -0300 -03   1.11GB
+nginx                 latest        5aca99593157   2026-05-22 15:24:53 -0300 -03   241MB
+postgres              16-alpine     16bc17c64a57   2026-05-14 16:03:47 -0300 -03   396MB
+nginx                 1.27-alpine   65645c7bb6a0   2025-04-16 11:50:31 -0300 -03   74.5MB
+keter@yvy-server:/opt/yvy-server$ docker inspect --format '{{.Config.Image}} {{.Image}}' yvy-postgres
+yvy-server-postgres sha256:5a26f9716bd4082bd73e6890dbba61ef6ce9ebf002773dbf7e8436e30ec715c4
+keter@yvy-server:/opt/yvy-server$ docker image inspect $(docker inspect --format '{{.Image}}' yvy-postgres) \
+>   --format 'Created={{.Created}} Digest={{index .RepoDigests 0}}'
+Created=2026-06-22T19:15:16.119259973-03:00 Digest=yvy-server-postgres@sha256:5a26f9716bd4082bd73e6890dbba61ef6ce9ebf002773dbf7e8436e30ec715c4
+
+keter@yvy-server:/opt/yvy-server$ keter@yvy-server:/opt/yvy-server$ docker inspect yvy-api --format 'Image={{.Config.Image}} Created={{.Created}}'
+Image=yvy-server-yvy-api Created=2026-07-06T23:17:06.475399655Z
+keter@yvy-server:/opt/yvy-server$ docker inspect yvy-api --format '{{json .Config.Labels}}'
+{"com.docker.compose.config-hash":"cf612bab5dad1521425cc8815b896d8edc88a06b52823e87094c8fc303abba61","com.docker.compose.container-number":"1","com.docker.compose.depends_on":"postgres:service_healthy:false","com.docker.compose.image":"sha256:94e13d1cc4f00a8912ee7b6d8b7ce484701cd0b5bdceff9782c742691f201fa3","com.docker.compose.oneoff":"False","com.docker.compose.project":"yvy-server","com.docker.compose.project.config_files":"/opt/yvy-server/docker-compose.yml","com.docker.compose.project.working_dir":"/opt/yvy-server","com.docker.compose.service":"yvy-api","com.docker.compose.version":"5.3.0"}
+
+keter@yvy-server:/opt/yvy-server$ # Restart policy + healthcheck + mounts (por contenedor)
+keter@yvy-server:/opt/yvy-server$ for c in yvy-api yvy-postgres yvy-nginx; do
+>   echo "== $c =="
+>   docker inspect $c --format 'Restart={{.HostConfig.RestartPolicy.Name}}'
+>   docker inspect $c --format 'Health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}'
+>   docker inspect $c --format '{{range .Mounts}}{{.Type}} {{.Source}} -> {{.Destination}}{{"\n"}}{{end}}'
+> done
+== yvy-api ==
+Restart=unless-stopped
+Health=healthy
+bind /opt/yvy-server/logs/api -> /app/logs
+bind /opt/yvy-server/data/releases -> /app/data/releases
+
+== yvy-postgres ==
+Restart=unless-stopped
+Health=healthy
+bind /opt/yvy-server/data/postgres -> /var/lib/postgresql/data
+
+== yvy-nginx ==
+Restart=unless-stopped
+Health=none
+bind /etc/letsencrypt -> /etc/letsencrypt
+bind /opt/yvy-server/logs/nginx -> /var/log/nginx
+bind /opt/yvy-server/nginx/conf/nginx.conf -> /etc/nginx/nginx.conf
+
+
+keter@yvy-server:/opt/yvy-server$ docker inspect yvy-api --format '{{range .Config.Env}}{{println .}}{{end}}' \
+>   | cut -d= -f1 | sort
+
+GPG_KEY
+LANG
+PATH
+PYTHONDONTWRITEBYTECODE
+PYTHON_SHA256
+PYTHONUNBUFFERED
+PYTHON_VERSION
+YVY_ADMIN_TOKEN
+YVY_CLOCK_SKEW_MAX_SECONDS
+YVY_CLOCK_SKEW_WARN_SECONDS
+YVY_DB_DSN
+YVY_ENV
+YVY_HOST
+YVY_LOG_LEVEL
+YVY_PORT
+YVY_RELEASES_DIR
+YVY_SUPPORTED_SCHEMAS
+
+keter@yvy-server:/opt/yvy-server$ docker network ls
+NETWORK ID     NAME           DRIVER    SCOPE
+fc7d9cd77967   bridge         bridge    local
+ea4309cdc442   host           host      local
+d0f888fad281   none           null      local
+59492e588424   yvy-internal   bridge    local
+keter@yvy-server:/opt/yvy-server$ docker volume ls
+DRIVER    VOLUME NAME
+keter@yvy-server:/opt/yvy-server$ docker volume inspect yvy_postgres_data --format '{{.Mountpoint}} {{.CreatedAt}}' 2>/dev/null \
+>   || docker volume ls --format '{{.Name}}' | grep -i postgres
+
+
+keter@yvy-server:/opt/yvy-server$ docker compose logs --tail=100 yvy-api | grep -iE '"level": ?"(ERROR|CRITICAL|WARNING)"' | tail -30
+keter@yvy-server:/opt/yvy-server$ docker compose logs --tail=50 postgres | grep -iE 'error|fatal|panic' | tail -20
+keter@yvy-server:/opt/yvy-server$ docker compose logs --tail=50 nginx  | grep -viE 'GET /api' | tail -20
+yvy-nginx  | /docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration
+yvy-nginx  | /docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/
+yvy-nginx  | /docker-entrypoint.sh: Launching /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh
+yvy-nginx  | 10-listen-on-ipv6-by-default.sh: info: Getting the checksum of /etc/nginx/conf.d/default.conf
+yvy-nginx  | 10-listen-on-ipv6-by-default.sh: info: Enabled listen on IPv6 in /etc/nginx/conf.d/default.conf
+yvy-nginx  | /docker-entrypoint.sh: Sourcing /docker-entrypoint.d/15-local-resolvers.envsh
+yvy-nginx  | /docker-entrypoint.sh: Launching /docker-entrypoint.d/20-envsubst-on-templates.sh
+yvy-nginx  | /docker-entrypoint.sh: Launching /docker-entrypoint.d/30-tune-worker-processes.sh
+yvy-nginx  | /docker-entrypoint.sh: Configuration complete; ready for start up
+yvy-nginx  | nginx: [warn] the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/nginx.conf:41
+yvy-nginx  | nginx: [warn] "ssl_stapling" ignored, no OCSP responder URL in the certificate "/etc/letsencrypt/live/yvyedge.com/fullchain.pem"
+
+keter@yvy-server:/opt/yvy-server$ keter@yvy-server:/opt/yvy-server$ docker compose exec yvy-api yvy-server version
+0.9.1-dev+unknown
+keter@yvy-server:/opt/yvy-server$ docker compose exec yvy-api curl -s http://localhost:8000/api/v1/serverinfo
+{"version":"0.9.1-dev+unknown","git_commit_short":"unknown","build_date":"unknown","server_time_utc":"2026-07-07T16:25:52.636474Z","schema_versions_supported":["1.0"]}
+
+keter@yvy-server:/opt/yvy-server$ docker compose exec yvy-api curl -si http://localhost:8000/api/v1/healthz
+HTTP/1.1 200 OK
+date: Tue, 07 Jul 2026 16:26:18 GMT
+server: uvicorn
+content-length: 15
+content-type: application/json
+x-schema-versions-supported: 1.0
+x-server-time: 2026-07-07T16:26:19.052Z
+x-server-version: 0.9.1-dev+unknown
+
+keter@yvy-server:/opt/yvy-server$ curl -si https://edge.yvyedge.com/api/v1/healthz
+python3 -m json.toolHTTP/2 200
+server: nginx
+date: Tue, 07 Jul 2026 16:26:36 GMT
+content-type: application/json
+content-length: 15
+x-schema-versions-supported: 1.0
+x-server-time: 2026-07-07T16:26:36.214Z
+x-server-version: 0.9.1-dev+unknown
+strict-transport-security: max-age=31536000; includeSubDomains
+x-content-type-options: nosniff
+x-frame-options: DENY
+referrer-policy: no-referrer
+
+{"status":"ok"}keter@yvy-server:/opt/yvy-server$ curl -s  https://edge.yvyedge.com/api/v1/serverinfo | python3 -m json.tool
+{
+    "version": "0.9.1-dev+unknown",
+    "git_commit_short": "unknown",
+    "build_date": "unknown",
+    "server_time_utc": "2026-07-07T16:26:36.669534Z",
+    "schema_versions_supported": [
+        "1.0"
+    ]
+}
+
+
+keter@yvy-server:/opt/yvy-server$ docker compose logs yvy-api | grep initial_sync_version | tail -1
+te;"yvy-api  | {"ts": "2026-07-06T23:17:14.127Z", "level": "INFO", "logger": "yvy.main", "msg": "startup complete; ready to serve requests", "initial_sync_version": 5}
+keter@yvy-server:/opt/yvy-server$ docker compose exec postgres psql -U yvyserver -d yvy -tc "SELECT sync_version FROM sync_state;"
+            5
+
+keter@yvy-server:/opt/yvy-server$ docker compose exec yvy-api curl -s http://localhost:8000/openapi.json \
+>   | python3 -c "import json,sys; d=json.load(sys.stdin); [print(m.upper(), p) for p,ms in sorted(d['paths'].items()) for m in ms]"
+GET /api/v1/admin/failures
+POST /api/v1/admin/failures/{failure_id}/resolve
+GET /api/v1/admin/healthz
+GET /api/v1/admin/stats
+GET /api/v1/edge/sync
+GET /api/v1/edge/updates/{filename}
+GET /api/v1/healthz
+POST /api/v1/ingest/comment
+POST /api/v1/ingest/event
+POST /api/v1/ingest/observation
+POST /api/v1/ingest/sensor
+GET /api/v1/serverinfo
+
+# CORS: preflight simulado (pre-M0 no debería haber CORSMiddleware)
+keter@yvy-server:/opt/yvy-server$ curl -si -X OPTIONS https://edge.yvyedge.com/api/v1/healthz \
+>   -H "Origin: https://yvyedge.com" -H "Access-Control-Request-Method: GET" | head -15
+HTTP/2 405
+server: nginx
+date: Tue, 07 Jul 2026 16:28:05 GMT
+content-type: application/json
+content-length: 31
+allow: GET
+x-schema-versions-supported: 1.0
+x-server-time: 2026-07-07T16:28:05.369Z
+x-server-version: 0.9.1-dev+unknown
+strict-transport-security: max-age=31536000; includeSubDomains
+x-content-type-options: nosniff
+x-frame-options: DENY
+referrer-policy: no-referrer
+
+{"detail":"Method Not Allowed"}
+
+Postgres
+yvy=# select version();
+ PostgreSQL 16.14 (Debian 16.14-1.pgdg11+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 10.2.1-6) 10.2.1 20210110, 64-bit
+
+yvy=# yvy=# SELECT current_user, current_database();
+ current_user | current_database
+--------------+------------------
+ yvyserver    | yvy
+(1 row)
+
+yvy=# \du
+                             List of roles
+ Role name |                         Attributes
+-----------+------------------------------------------------------------
+ yvyreader |
+ yvyserver | Superuser, Create role, Create DB, Replication, Bypass RLS
+
+\l
+   Name    |   Owner   | Encoding | Locale Provider | Collate | Ctype | ICU Locale | ICU Rules |    Access privileges   
+-----------+-----------+----------+-----------------+---------+-------+------------+-----------+-------------------------
+ postgres  | yvyserver | UTF8     | libc            | C       | C     |            |           |
+ template0 | yvyserver | UTF8     | libc            | C       | C     |            |           | =c/yvyserver           +
+           |           |          |                 |         |       |            |           | yvyserver=CTc/yvyserver
+ template1 | yvyserver | UTF8     | libc            | C       | C     |            |           | =c/yvyserver           +
+           |           |          |                 |         |       |            |           | yvyserver=CTc/yvyserver
+ yvy       | yvyserver | UTF8     | libc            | C       | C     |            |           | =Tc/yvyserver          +
+           |           |          |                 |         |       |            |           | yvyserver=CTc/yvyserver+
+           |           |          |                 |         |       |            |           | yvyreader=c/yvyserver
+(4 rows)
+
+yvy=# yvy=# SELECT extname, extversion FROM pg_extension ORDER BY 1;
+ extname | extversion
+---------+------------
+ plpgsql | 1.0
+ postgis | 3.4.3
+ vector  | 0.8.3
+(3 rows)
+
+yvy=# SELECT name FROM pg_available_extensions WHERE name IN ('vector','postgis');
+  name
+---------
+ vector
+ postgis
+(2 rows)
+
+yvy=# \dn
+        List of schemas
+   Name    |       Owner
+-----------+-------------------
+ auth      | yvyserver
+ bronze    | yvyserver
+ canonical | yvyserver
+ catalog   | yvyserver
+ exports   | yvyserver
+ gold      | yvyserver
+ knowledge | yvyserver
+ public    | pg_database_owner
+ silver    | yvyserver
+(9 rows)
+
+yvy=# \dt public.*
+                List of relations
+ Schema |        Name         | Type  |   Owner
+--------+---------------------+-------+-----------
+ public | alembic_version     | table | yvyserver
+ public | edge_releases       | table | yvyserver
+ public | spatial_ref_sys     | table | yvyserver
+ public | station             | table | yvyserver
+ public | station_credentials | table | yvyserver
+ public | sync_state          | table | yvyserver
+(6 rows)
+
+yvy=# \dt bronze.*
+                   List of relations
+ Schema |           Name            | Type  |   Owner
+--------+---------------------------+-------+-----------
+ bronze | empirical_event_raw       | table | yvyserver
+ bronze | empirical_observation_raw | table | yvyserver
+ bronze | ingest_failures           | table | yvyserver
+ bronze | ingest_log                | table | yvyserver
+ bronze | sensor_raw                | table | yvyserver
+(5 rows)
+
+yvy=# \dv
+               List of relations
+ Schema |       Name        | Type |   Owner
+--------+-------------------+------+-----------
+ public | geography_columns | view | yvyserver
+ public | geometry_columns  | view | yvyserver
+(2 rows)
+
+yvy=# \d bronze.sensor_raw
+                           Table "bronze.sensor_raw"
+       Column       |           Type           | Collation | Nullable | Default
+--------------------+--------------------------+-----------+----------+---------
+ event_id           | uuid                     |           | not null |
+ station_uuid       | uuid                     |           | not null |
+ schema_version     | text                     |           | not null |
+ payload            | jsonb                    |           | not null |
+ received_at        | timestamp with time zone |           | not null | now()
+ sent_at_utc        | timestamp with time zone |           |          |
+ key_version_used   | integer                  |           | not null |
+ received_from_ip   | inet                     |           |          |
+ kafka_topic        | text                     |           |          |
+ kafka_partition    | integer                  |           |          |
+ kafka_offset       | bigint                   |           |          |
+ kafka_published_at | timestamp with time zone |           |          |
+Indexes:
+    "pk_sensor_raw" PRIMARY KEY, btree (event_id)
+    "idx_sensor_raw_payload_obs" btree ((payload ->> 'observed_at_utc'::text))
+    "idx_sensor_raw_station_recv" btree (station_uuid, received_at DESC)
+Foreign-key constraints:
+    "fk_sensor_raw_station_uuid_station" FOREIGN KEY (station_uuid) REFERENCES station(station_uuid)
+
+
+
+yvy=# \d station
+                           Table "public.station"
+     Column     |           Type           | Collation | Nullable | Default
+----------------+--------------------------+-----------+----------+---------
+ station_uuid   | uuid                     |           | not null |
+ name           | text                     |           | not null |
+ description    | text                     |           |          |
+ location_lat   | real                     |           |          |
+ location_lon   | real                     |           |          |
+ location_name  | text                     |           |          |
+ created_at     | timestamp with time zone |           | not null | now()
+ deactivated_at | timestamp with time zone |           |          |
+Indexes:
+    "pk_station" PRIMARY KEY, btree (station_uuid)
+Referenced by:
+    TABLE "bronze.empirical_event_raw" CONSTRAINT "fk_empirical_event_raw_station_uuid_station" FOREIGN KEY (station_uuid) REFERENCES station(station_uuid)
+    TABLE "bronze.empirical_observation_raw" CONSTRAINT "fk_empirical_observation_raw_station_uuid_station" FOREIGN KEY (station_uuid) REFERENCES station(station_uuid)
+    TABLE "bronze.sensor_raw" CONSTRAINT "fk_sensor_raw_station_uuid_station" FOREIGN KEY (station_uuid) REFERENCES station(station_uuid)
+    TABLE "station_credentials" CONSTRAINT "fk_station_credentials_station_uuid_station" FOREIGN KEY (station_uuid) REFERENCES station(station_uuid)
+
+
+yvy=# SELECT conname, conrelid::regclass, confrelid::regclass
+yvy-# FROM pg_constraint WHERE contype='f' ORDER BY 2;
+                      conname                      |             conrelid             | confrelid
+---------------------------------------------------+----------------------------------+-----------
+ fk_station_credentials_station_uuid_station       | station_credentials              | station
+ fk_sensor_raw_station_uuid_station                | bronze.sensor_raw                | station
+ fk_empirical_observation_raw_station_uuid_station | bronze.empirical_observation_raw | station
+ fk_empirical_event_raw_station_uuid_station       | bronze.empirical_event_raw       | station
+(4 rows)
+
+yvy=# SELECT schemaname, indexname, tablename FROM pg_indexes
+yvy-# WHERE schemaname IN ('public','bronze') ORDER BY tablename;
+ schemaname |                    indexname                    |         tablename
+------------+-------------------------------------------------+---------------------------
+ public     | alembic_version_pkc                             | alembic_version
+ public     | ix_edge_releases_active_released                | edge_releases
+ public     | ix_edge_releases_edge_version                   | edge_releases
+ public     | pk_edge_releases                                | edge_releases
+ bronze     | pk_empirical_event_raw                          | empirical_event_raw
+ bronze     | pk_empirical_observation_raw                    | empirical_observation_raw
+ bronze     | pk_ingest_failures                              | ingest_failures
+ bronze     | idx_failures_unresolved                         | ingest_failures
+ bronze     | pk_ingest_log                                   | ingest_log
+ bronze     | idx_ingest_log_recv                             | ingest_log
+ bronze     | idx_ingest_log_failures                         | ingest_log
+ bronze     | idx_sensor_raw_payload_obs                      | sensor_raw
+ bronze     | idx_sensor_raw_station_recv                     | sensor_raw
+ bronze     | pk_sensor_raw                                   | sensor_raw
+ public     | spatial_ref_sys_pkey                            | spatial_ref_sys
+ public     | pk_station                                      | station
+ public     | pk_station_credentials                          | station_credentials
+ public     | uq_station_credentials_station_uuid_key_version | station_credentials
+ public     | pk_sync_state                                   | sync_state
+(19 rows)
+
+
+yvy=# SELECT 'sensor_raw' t, COUNT(*), MAX(received_at) FROM bronze.sensor_raw
+yvy-# UNION ALL SELECT 'empirical_obs', COUNT(*), MAX(received_at) FROM bronze.empirical_observation_raw
+yvy-# UNION ALL SELECT 'empirical_event', COUNT(*), MAX(received_at) FROM bronze.empirical_event_raw
+yvy-# UNION ALL SELECT 'ingest_log', COUNT(*), MAX(received_at) FROM bronze.ingest_log
+yvy-# UNION ALL SELECT 'ingest_failures', COUNT(*), MAX(received_at) FROM bronze.ingest_failures;
+        t        | count |              max
+-----------------+-------+-------------------------------
+ ingest_failures |     4 | 2026-07-06 13:58:26.245188+00
+ empirical_event |     0 |
+ empirical_obs   |     6 | 2026-07-01 19:50:32.654072+00
+ ingest_log      | 41888 | 2026-07-07 16:35:56.878761+00
+ sensor_raw      | 41872 | 2026-07-07 16:35:56.878761+00
+(5 rows)
+
+yvy=# -- Ritmo de ingesta reciente (¿1/min de IEA-07?)
+yvy=# SELECT date_trunc('hour', received_at) h, COUNT(*)
+yvy-# FROM bronze.sensor_raw WHERE received_at > now() - interval '24 hours'
+yvy-# GROUP BY 1 ORDER BY 1 DESC LIMIT 6;
+E received_at > now() - interval '48 hours' AND failure_class IS NOT NULL
+GROUP BY 1;
+
+-- DLQ pendiente
+SELECT COUNT(*) FROM bronze.ingest_failures WHERE resolved_at IS NULL;
+
+-- Estaciones y credenciales activas (sin exponer keys)
+SELECT station_uuid, name, created_at, deactivated_at FROM station;
+SELECT station_uuid, key_version, deactivated_at FROM station_credentials;
+
+-- Releases OTA (H9)
+SELECT edge_version, min_edge_version, is_active, released_at, sync_version
+FROM edge_releases ORDER BY released_at DESC;           h            | count
+------------------------+-------
+ 2026-07-07 16:00:00+00 |    37
+ 2026-07-07 15:00:00+00 |    59
+ 2026-07-07 14:00:00+00 |    58
+ 2026-07-07 13:00:00+00 |    56
+ 2026-07-07 12:00:00+00 |    52
+ 2026-07-07 11:00:00+00 |    46
+(6 rows)
+
+yvy=#
+yvy=# -- Errores de ingesta últimas 48h por clase
+yvy=# SELECT failure_class, COUNT(*) FROM bronze.ingest_log
+yvy-# WHERE received_at > now() - interval '48 hours' AND failure_class IS NOT NULL
+yvy-# GROUP BY 1;
+ failure_class | count
+---------------+-------
+ SCHEMA        |     1
+(1 row)
+
+yvy=#
+yvy=# -- DLQ pendiente
+yvy=# SELECT COUNT(*) FROM bronze.ingest_failures WHERE resolved_at IS NULL;
+ count
+-------
+     4
+(1 row)
+
+yvy=#
+yvy=# -- Estaciones y credenciales activas (sin exponer keys)
+yvy=# SELECT station_uuid, name, created_at, deactivated_at FROM station;
+             station_uuid             |       name       |          created_at           | deactivated_at
+--------------------------------------+------------------+-------------------------------+----------------
+ d9d14fce-2eb3-4521-a1cf-54022dded7d2 | IEA 7 - Posadas  | 2026-06-08 18:48:28.20411+00  |
+ 688cb5a9-678e-4cd5-9447-bef4df265ece | Test Gonzalo     | 2026-06-19 19:32:15.08126+00  |
+ 084f6ffd-b28f-4c45-83d9-6b401b55248c | IEA 1 - Bompland | 2026-06-29 23:08:55.770936+00 |
+(3 rows)
+
+yvy=# SELECT station_uuid, key_version, deactivated_at FROM station_credentials;
+             station_uuid             | key_version | deactivated_at
+--------------------------------------+-------------+----------------
+ d9d14fce-2eb3-4521-a1cf-54022dded7d2 |           1 |
+ 688cb5a9-678e-4cd5-9447-bef4df265ece |           1 |
+ 084f6ffd-b28f-4c45-83d9-6b401b55248c |           1 |
+(3 rows)
+
+yvy=#
+yvy=# -- Releases OTA (H9)
+yvy=# SELECT edge_version, min_edge_version, is_active, released_at, sync_version
+yvy-# FROM edge_releases ORDER BY released_at DESC;
+ edge_version | min_edge_version | is_active |          released_at          | sync_version
+--------------+------------------+-----------+-------------------------------+--------------
+ 1.5.4        | 1.0.0            | t         | 2026-06-27 18:45:30.127814+00 |            5
+ 1.5.3        | 1.0.0            | t         | 2026-06-25 18:40:31.751347+00 |            4
+ 1.5.2        | 1.0.0            | f         | 2026-06-25 16:49:02.274311+00 |            3
+ 1.5.1        | 1.0.0            | f         | 2026-06-24 19:33:35.252668+00 |            2
+ 1.3.2        | 0.9.0            | f         | 2026-06-17 19:51:50.310289+00 |            1
+(5 rows)
+
+yvy=# SELECT pg_size_pretty(pg_database_size('yvy'));
+ pg_size_pretty
+----------------
+ 53 MB
+(1 row)
+
+yvy=# SELECT relname, pg_size_pretty(pg_total_relation_size(oid))
+yvy-# FROM pg_class WHERE relnamespace='bronze'::regnamespace AND relkind='r' ORDER BY 2 DESC;
+          relname          | pg_size_pretty
+---------------------------+----------------
+ ingest_log                | 8752 kB
+ ingest_failures           | 48 kB
+ empirical_observation_raw | 32 kB
+ sensor_raw                | 28 MB
+ empirical_event_raw       | 16 kB
+(5 rows)
+
+yvy=# SELECT count(*) FROM pg_stat_activity;
+ count
+-------
+     8
+(1 row)
+
+yvy=# SELECT version_num FROM alembic_version;
+    version_num
+--------------------
+ 0002_edge_releases
+(1 row)
+
+keter@yvy-server:/opt/yvy-server$ keter@yvy-server:/opt/yvy-server$ docker compose exec yvy-api alembic heads
+0002_edge_releases (head)
+keter@yvy-server:/opt/yvy-server$ docker compose exec yvy-api alembic current
+INFO    [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO    [alembic.runtime.migration] Will assume transactional DDL.
+0002_edge_releases (head)
+
+keter@yvy-server:/opt/yvy-server$ ls /opt/yvy-server/server-code/alembic/versions/
+001_init.py  002_edge_releases.py
+
+keter@yvy-server:/opt/yvy-server$ ls -la /opt/yvy-server/.env /opt/yvy-server/secrets/ 2>/dev/null
+-rw-r----- 1 yvyadmin docker  967 jun  3 16:21 /opt/yvy-server/.env
+
+/opt/yvy-server/secrets/:
+total 32
+drwxr-x---  2 yvyadmin docker 4096 jun  8 15:52 .
+drwxr-xr-x 12 yvyadmin docker 4096 jun 26 20:10 ..
+-rw-r-----  1 yvyadmin docker 1842 jun  3 16:30 credentials.txt
+-rw-r-----  1 yvyadmin docker  244 jun  8 15:48 iea7_credentials.json
+-rw-r--r--  1 yvyadmin docker  121 jun  8 15:52 iea7_credentials.json.info
+-rw-r-----  1 yvyadmin docker   45 jun  3 16:09 pg_password_yvyreader.txt
+-rw-r-----  1 yvyadmin docker   45 jun  3 16:07 pg_password_yvyserver.txt
+-rw-r-----  1 yvyadmin docker   65 jun  3 16:12 yvy_admin_token.txt
+keter@yvy-server:/opt/yvy-server$ stat -c '%a %U %G %n' /opt/yvy-server/.env
+640 yvyadmin docker /opt/yvy-server/.env
+keter@yvy-server:/opt/yvy-server$ grep -c . /opt/yvy-server/.env                      # cuántas líneas (no el contenido)
+14
+keter@yvy-server:/opt/yvy-server$ grep -oE '^[A-Z_]+' /opt/yvy-server/.env | sort     # SOLO nombres de variables
+POSTGRES_DB
+POSTGRES_PASSWORD
+POSTGRES_USER
+YVY_ADMIN_TOKEN
+YVY_DOMAIN
+YVY_LOG_LEVEL
+keter@yvy-server:/opt/yvy-server$
+
+keter@yvy-server:/opt/yvy-server$ ls -la /opt/yvy-server/data/releases/       # tars OTA + ownership yvyadmin
+total 210456
+drwxr-xr-x 2 yvyadmin yvyadmin            4096 jun 27 15:40 .
+drwxr-xr-x 4      999 systemd-journal     4096 jun 10 15:47 ..
+-rw-r--r-- 1 yvyadmin yvyadmin        44817400 jun 17 16:30 yvy-edge-1.3.2.tar.gz
+-rw-r--r-- 1 yvyadmin yvyadmin        42681798 jun 24 16:21 yvy-edge-1.5.1.tar.gz
+-rw-r--r-- 1 yvyadmin yvyadmin        42658751 jun 25 13:35 yvy-edge-1.5.2.tar.gz
+-rw-r--r-- 1 yvyadmin yvyadmin        42665894 jun 25 15:33 yvy-edge-1.5.3.tar.gz
+-rw-r--r-- 1 yvyadmin yvyadmin        42665909 jun 27 15:28 yvy-edge-1.5.4.tar.gz
+keter@yvy-server:/opt/yvy-server$ ls -la /opt/yvy-server/logs/api/ | tail -5
+total 8
+drwxr-xr-x 2 yvyadmin docker 4096 jun  3 17:18 .
+drwxr-xr-x 4 yvyadmin docker 4096 jun  3 17:18 ..
+keter@yvy-server:/opt/yvy-server$ ls -la /opt/yvy-server/backups/ | tail -10  # o la ruta del script de backup
+-rw-r--r--  1 root     root     2032539 jun 23 03:00 yvy_20260623_030001.sql.gz
+-rw-r--r--  1 root     root     2155423 jun 24 03:00 yvy_20260624_030001.sql.gz
+-rw-r--r--  1 root     root     2273982 jun 25 03:00 yvy_20260625_030001.sql.gz
+-rw-r--r--  1 root     root     2393993 jun 26 03:00 yvy_20260626_030001.sql.gz
+-rw-r--r--  1 root     root     2513806 jun 27 03:00 yvy_20260627_030001.sql.gz
+-rw-r--r--  1 root     root     2895224 jun 30 03:00 yvy_20260630_030001.sql.gz
+-rw-r--r--  1 root     root     3017134 jul  1 03:00 yvy_20260701_030001.sql.gz
+-rw-r--r--  1 root     root     3142995 jul  2 03:00 yvy_20260702_030001.sql.gz
+-rw-r--r--  1 root     root     3271963 jul  3 03:00 yvy_20260703_030001.sql.gz
+-rw-r--r--  1 root     root     3775297 jul  7 03:00 yvy_20260707_030001.sql.gz
+keter@yvy-server:/opt/yvy-server$ df -h /opt /var
+S.ficheros                       Tamaño Usados  Disp Uso% Montado en
+/dev/mapper/yvy--server--vg-root    99G    11G   84G  12% /
+/dev/mapper/yvy--server--vg-var    246G   7,3G  229G   4% /var
+keter@yvy-server:/opt/yvy-server$ free -h
+               total       usado       libre  compartido   búf/caché   disponible
+Mem:            13Gi       1,1Gi        10Gi        59Mi       1,9Gi        12Gi
+Inter:          23Gi          0B        23Gi
+keter@yvy-server:/opt/yvy-server$
+
+
+keter@yvy-server:/opt/yvy-server$ sudo crontab -l; crontab -l
+# Edit this file to introduce tasks to be run by cron.
+#
+# Each task to run has to be defined through a single line
+# indicating with different fields when the task will be run
+# and what command to run for the task
+#
+# To define the time you can provide concrete values for
+# minute (m), hour (h), day of month (dom), month (mon),
+# and day of week (dow) or use '*' in these fields (for 'any').
+#
+# Notice that tasks will be started based on the cron's system
+# daemon's notion of time and timezones.
+#
+# Output of the crontab jobs (including errors) is sent through
+# email to the user the crontab file belongs to (unless redirected).
+#
+# For example, you can run a backup of all your user accounts
+# at 5 a.m every week with:
+# 0 5 * * 1 tar -zcf /var/backups/home.tgz /home/
+#
+# For more information see the manual pages of crontab(5) and cron(8)
+#
+# m h  dom mon dow   command
+# YVY baskcup nightly @ 03:00 AM
+0 3 * * * /opt/yvy-server/scripts/backup_postgres.sh >> /opt/yvy-server/backups/cron.log  2>&1
+no crontab for keter
+
+keter@yvy-server:/opt/yvy-server$ systemctl list-timers --all
+NEXT                        LEFT          LAST                        PASSED       UNIT                         ACTIVAT>
+Tue 2026-07-07 17:30:12 -03 3h 44min left Mon 2026-07-06 20:17:02 -03 17h ago      apt-daily.timer              apt-dai>
+Wed 2026-07-08 00:00:00 -03 10h left      Tue 2026-07-07 00:00:13 -03 13h ago      dpkg-db-backup.timer         dpkg-db>
+Wed 2026-07-08 00:00:00 -03 10h left      Tue 2026-07-07 00:00:13 -03 13h ago      logrotate.timer              logrota>
+Wed 2026-07-08 02:14:21 -03 12h left      Tue 2026-07-07 13:28:13 -03 17min ago    certbot.timer                certbot>
+Wed 2026-07-08 05:47:24 -03 16h left      Tue 2026-07-07 07:41:13 -03 6h ago       man-db.timer                 man-db.>
+Wed 2026-07-08 06:06:56 -03 16h left      Tue 2026-07-07 06:02:13 -03 7h ago       apt-daily-upgrade.timer      apt-dai>
+Wed 2026-07-08 06:40:05 -03 16h left      Tue 2026-07-07 06:40:05 -03 7h ago       systemd-tmpfiles-clean.timer systemd>
+Sun 2026-07-12 03:10:33 -03 4 days left   Mon 2026-07-06 06:25:13 -03 1 day 7h ago e2scrub_all.timer            e2scrub>
+Mon 2026-07-13 01:11:05 -03 5 days left   Mon 2026-07-06 06:42:55 -03 1 day 7h ago fstrim.timer                 fstrim.>
+
+9 timers listed.
+
+keter@yvy-server:/opt/yvy-server$ keter@yvy-server:/opt/yvy-server$ systemctl status docker --no-pager | head -5
+● docker.service - Docker Application Container Engine
+     Loaded: loaded (/lib/systemd/system/docker.service; enabled; preset: enabled)
+     Active: active (running) since Mon 2026-07-06 20:17:06 -03; 17h ago
+TriggeredBy: ● docker.socket
+       Docs: https://docs.docker.com
+
+keter@yvy-server:/opt/yvy-server$ systemctl is-enabled docker
+enabled
+
+keter@yvy-server:/opt/yvy-server$ ls /etc/systemd/system/ | grep -i yvy
+yvy-stack.service
+
+keter@yvy-server:/opt/yvy-server$ sudo systemctl status yvy* --no-pager 2>/dev/null | head -20
+● yvy-stack.service - YVY Server Stack (Docker Compose)
+     Loaded: loaded (/etc/systemd/system/yvy-stack.service; enabled; preset: enabled)
+     Active: active (exited) since Mon 2026-07-06 20:17:18 -03; 17h ago
+    Process: 199419 ExecStart=/usr/bin/docker compose up -d (code=exited, status=0/SUCCESS)
+   Main PID: 199419 (code=exited, status=0/SUCCESS)
+        CPU: 94ms
+
+jul 06 20:17:06 yvy-server docker[199443]:  Container yvy-postgres Started
+jul 06 20:17:06 yvy-server docker[199443]:  Container yvy-postgres Waiting
+jul 06 20:17:12 yvy-server docker[199443]:  Container yvy-postgres Healthy
+jul 06 20:17:12 yvy-server docker[199443]:  Container yvy-api Starting
+jul 06 20:17:12 yvy-server docker[199443]:  Container yvy-api Started
+jul 06 20:17:12 yvy-server docker[199443]:  Container yvy-api Waiting
+jul 06 20:17:18 yvy-server docker[199443]:  Container yvy-api Healthy
+jul 06 20:17:18 yvy-server docker[199443]:  Container yvy-nginx Starting
+jul 06 20:17:18 yvy-server docker[199443]:  Container yvy-nginx Started
+jul 06 20:17:18 yvy-server systemd[1]: Finished yvy-stack.service - YVY Server Stack (Docker Compose).
+
+keter@yvy-server:/opt/yvy-server$ cat /etc/passwd | grep -E 'bash|sh$' ; sudo cat /etc/sudoers.d/* 2>/dev/null; sudo grep -E '^[^#].*ALL' /etc/sudoers
+root:x:0:0:root:/root:/bin/bash
+yvyadmin:x:1000:1000:YVY Edge,,,:/home/yvyadmin:/bin/bash
+keter:x:1001:1001:Keter Gonzalo,007,3764506215,:/home/keter:/bin/bash
+bina:x:1002:1002:Luis Reis Viera,,+54 9 3743 45-7921,:/home/bina:/bin/bash
+#
+# The default /etc/sudoers file created on installation of the
+# sudo  package now includes the directive:
+#
+#       @includedir /etc/sudoers.d
+#
+# This will cause sudo to read and parse any files in the /etc/sudoers.d
+# directory that do not end in '~' or contain a '.' character.
+#
+# Note that there must be at least one file in the sudoers.d directory (this
+# one will do).
+#
+# Note also, that because sudoers contents can vary widely, no attempt is
+# made to add this directive to existing sudoers files on upgrade.  Feel free
+# to add the above directive to the end of your /etc/sudoers file to enable
+# this functionality for existing installations if you wish! Sudo
+# versions older than the one in Debian 11 (bullseye) require the
+# directive will only support the old syntax #includedir, and the current
+# sudo will happily accept both @includedir and #includedir
+#
+# Finally, please note that using the visudo command is the recommended way
+# to update sudoers content, since it protects against many failure modes.
+# See the man page for visudo and sudoers for more information.
+#
+root    ALL=(ALL:ALL) ALL
+%sudo   ALL=(ALL:ALL) ALL
+
+keter@yvy-server:/opt/yvy-server$ cat /etc/passwd
+root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+bin:x:2:2:bin:/bin:/usr/sbin/nologin
+sys:x:3:3:sys:/dev:/usr/sbin/nologin
+sync:x:4:65534:sync:/bin:/bin/sync
+games:x:5:60:games:/usr/games:/usr/sbin/nologin
+man:x:6:12:man:/var/cache/man:/usr/sbin/nologin
+lp:x:7:7:lp:/var/spool/lpd:/usr/sbin/nologin
+mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
+news:x:9:9:news:/var/spool/news:/usr/sbin/nologin
+uucp:x:10:10:uucp:/var/spool/uucp:/usr/sbin/nologin
+proxy:x:13:13:proxy:/bin:/usr/sbin/nologin
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+backup:x:34:34:backup:/var/backups:/usr/sbin/nologin
+list:x:38:38:Mailing List Manager:/var/list:/usr/sbin/nologin
+irc:x:39:39:ircd:/run/ircd:/usr/sbin/nologin
+_apt:x:42:65534::/nonexistent:/usr/sbin/nologin
+nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin
+systemd-network:x:998:998:systemd Network Management:/:/usr/sbin/nologin
+systemd-timesync:x:997:997:systemd Time Synchronization:/:/usr/sbin/nologin
+messagebus:x:100:107::/nonexistent:/usr/sbin/nologin
+sshd:x:101:65534::/run/sshd:/usr/sbin/nologin
+yvyadmin:x:1000:1000:YVY Edge,,,:/home/yvyadmin:/bin/bash
+keter:x:1001:1001:Keter Gonzalo,007,3764506215,:/home/keter:/bin/bash
+bina:x:1002:1002:Luis Reis Viera,,+54 9 3743 45-7921,:/home/bina:/bin/bash
+
+keter@yvy-server:/opt/yvy-server$ sudo sshd -T
+port 22
+addressfamily any
+listenaddress [::]:22
+listenaddress 0.0.0.0:22
+usepam yes
+logingracetime 30
+x11displayoffset 10
+maxauthtries 3
+maxsessions 10
+clientaliveinterval 300
+clientalivecountmax 2
+requiredrsasize 1024
+streamlocalbindmask 0177
+unusedconnectiontimeout none
+permitrootlogin no
+ignorerhosts yes
+ignoreuserknownhosts no
+hostbasedauthentication no
+hostbasedusesnamefrompacketonly no
+pubkeyauthentication yes
+kerberosauthentication no
+kerberosorlocalpasswd yes
+kerberosticketcleanup yes
+gssapiauthentication no
+gssapicleanupcredentials yes
+gssapikeyexchange no
+gssapistrictacceptorcheck yes
+gssapistorecredentialsonrekey no
+gssapikexalgorithms gss-group14-sha256-,gss-group16-sha512-,gss-nistp256-sha256-,gss-curve25519-sha256-,gss-group14-sha1-,gss-gex-sha1-
+passwordauthentication no
+kbdinteractiveauthentication no
+printmotd no
+printlastlog yes
+x11forwarding no
+x11uselocalhost yes
+permittty yes
+permituserrc yes
+strictmodes yes
+tcpkeepalive yes
+permitemptypasswords no
+compression yes
+gatewayports no
+usedns no
+allowtcpforwarding yes
+allowagentforwarding yes
+disableforwarding no
+allowstreamlocalforwarding yes
+streamlocalbindunlink no
+fingerprinthash SHA256
+exposeauthinfo no
+pidfile /run/sshd.pid
+modulifile /etc/ssh/moduli
+xauthlocation /usr/bin/xauth
+ciphers chacha20-poly1305@openssh.com,aes128-ctr,aes192-ctr,aes256-ctr,aes128-gcm@openssh.com,aes256-gcm@openssh.com
+macs umac-64-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha1-etm@openssh.com,umac-64@openssh.com,umac-128@openssh.com,hmac-sha2-256,hmac-sha2-512,hmac-sha1
+banner none
+forcecommand none
+chrootdirectory none
+trustedusercakeys none
+revokedkeys none
+securitykeyprovider internal
+authorizedprincipalsfile none
+versionaddendum none
+authorizedkeyscommand none
+authorizedkeyscommanduser none
+authorizedprincipalscommand none
+authorizedprincipalscommanduser none
+hostkeyagent none
+kexalgorithms sntrup761x25519-sha512,sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group-exchange-sha256,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group14-sha256
+casignaturealgorithms ssh-ed25519,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,sk-ssh-ed25519@openssh.com,sk-ecdsa-sha2-nistp256@openssh.com,rsa-sha2-512,rsa-sha2-256
+hostbasedacceptedalgorithms ssh-ed25519-cert-v01@openssh.com,ecdsa-sha2-nistp256-cert-v01@openssh.com,ecdsa-sha2-nistp384-cert-v01@openssh.com,ecdsa-sha2-nistp521-cert-v01@openssh.com,sk-ssh-ed25519-cert-v01@openssh.com,sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,ssh-ed25519,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,sk-ssh-ed25519@openssh.com,sk-ecdsa-sha2-nistp256@openssh.com,rsa-sha2-512,rsa-sha2-256
+hostkeyalgorithms ssh-ed25519-cert-v01@openssh.com,ecdsa-sha2-nistp256-cert-v01@openssh.com,ecdsa-sha2-nistp384-cert-v01@openssh.com,ecdsa-sha2-nistp521-cert-v01@openssh.com,sk-ssh-ed25519-cert-v01@openssh.com,sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,ssh-ed25519,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,sk-ssh-ed25519@openssh.com,sk-ecdsa-sha2-nistp256@openssh.com,rsa-sha2-512,rsa-sha2-256
+pubkeyacceptedalgorithms ssh-ed25519-cert-v01@openssh.com,ecdsa-sha2-nistp256-cert-v01@openssh.com,ecdsa-sha2-nistp384-cert-v01@openssh.com,ecdsa-sha2-nistp521-cert-v01@openssh.com,sk-ssh-ed25519-cert-v01@openssh.com,sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,ssh-ed25519,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,sk-ssh-ed25519@openssh.com,sk-ecdsa-sha2-nistp256@openssh.com,rsa-sha2-512,rsa-sha2-256
+loglevel INFO
+syslogfacility AUTH
+authorizedkeysfile .ssh/authorized_keys .ssh/authorized_keys2
+hostkey /etc/ssh/ssh_host_rsa_key
+hostkey /etc/ssh/ssh_host_ecdsa_key
+hostkey /etc/ssh/ssh_host_ed25519_key
+allowusers yvyadmin
+allowusers keter
+allowusers bina
+acceptenv LANG
+acceptenv LC_*
+authenticationmethods any
+subsystem sftp /usr/lib/openssh/sftp-server
+maxstartups 10:30:100
+persourcemaxstartups none
+persourcenetblocksize 32:128
+permittunnel no
+ipqos lowdelay throughput
+rekeylimit 0 0
+permitopen any
+permitlisten any
+permituserenvironment no
+pubkeyauthoptions none
+
+cat ~/.ssh/authorized_keys -- la de mi notebook, de mi pc escritorio y la del sysadmin luis(notebook)
+
+keter@yvy-server:/opt/yvy-server$ sudo ufw status verbose
+Status: active
+Logging: on (low)
+Default: deny (incoming), allow (outgoing), deny (routed)
+New profiles: skip
+
+To                         Action      From
+--                         ------      ----
+22/tcp                     ALLOW IN    Anywhere                   # SSH
+443/tcp                    ALLOW IN    Anywhere                   # HTTPS YVY ingest
+22/tcp (v6)                ALLOW IN    Anywhere (v6)              # SSH
+443/tcp (v6)               ALLOW IN    Anywhere (v6)              # HTTPS YVY ingest
+
+keter@yvy-server:/opt/yvy-server$ ss -tlnp | grep -vE '127.0.0.1|::1'
+State  Recv-Q Send-Q Local Address:Port Peer Address:PortProcess
+LISTEN 0      128          0.0.0.0:22        0.0.0.0:*
+LISTEN 0      4096         0.0.0.0:80        0.0.0.0:*
+LISTEN 0      4096         0.0.0.0:443       0.0.0.0:*
+LISTEN 0      128             [::]:22           [::]:*
+LISTEN 0      4096            [::]:80           [::]:*
+LISTEN 0      4096            [::]:443          [::]:*
+
+keter@yvy-server:/opt/yvy-server$ docker compose exec nginx nginx -t
+nginx: [warn] the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/nginx.conf:41
+nginx: [warn] "ssl_stapling" ignored, no OCSP responder URL in the certificate "/etc/letsencrypt/live/yvyedge.com/fullchain.pem"
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+
+keter@yvy-server:/opt/yvy-server$ docker compose exec nginx cat /etc/nginx/nginx.conf | grep -nE 'server_name|limit_req|proxy_pass'
+37:     limit_req_zone $binary_remote_addr zone=yvy_ingest:10m rate=60r/m;
+42:             server_name yvyedge.com;
+62:                     proxy_pass http://yvy-api:8000;
+73:                     proxy_pass http://yvy-api:8000;
+84:                     limit_req zone=yvy_ingest burst=30 nodelay;
+85:                     proxy_pass http://yvy-api:8000;
+97:                     proxy_pass http://yvy-api:8000;
+109:                    proxy_pass http://yvy-api:8000;
+131:            server_name yvyedge.com;
+132:            return 301 https://$server_name$request_uri;
+140:            server_name _;
+
+keter@yvy-server:/opt/yvy-server$ echo | openssl s_client -connect edge.yvyedge.com:443 -servername edge.yvyedge.com 2>/dev/null | openssl x509 -noout -dates -subject
+notBefore=Jun  3 17:57:27 2026 GMT
+notAfter=Sep  1 17:57:26 2026 GMT
+subject=CN = yvyedge.com
+
+keter@yvy-server:/opt/yvy-server$ sudo certbot certificates 2>/dev/null | grep -E 'Domains|Expiry'
+    Expiry Date: 2026-09-03 23:40:09+00:00 (VALID: 58 days)
+    Expiry Date: 2026-09-01 17:57:26+00:00 (VALID: 56 days)
+
+keter@yvy-server:/opt/yvy-server$ sudo systemctl status fail2ban --no-pager 2>/dev/null | head -3
+● fail2ban.service - Fail2Ban Service
+     Loaded: loaded (/lib/systemd/system/fail2ban.service; enabled; preset: enabled)
+     Active: active (running) since Mon 2026-07-06 06:25:49 -03; 1 day 7h ago
+keter@yvy-server:/opt/yvy-server$ sudo fail2ban-client status sshd 2>/dev/null
+Status for the jail: sshd
+|- Filter
+|  |- Currently failed: 0
+|  |- Total failed:     0
+|  `- File list:        /var/log/auth.log
+`- Actions
+   |- Currently banned: 0
+   |- Total banned:     0
+   `- Banned IP list:
+
+keter@yvy-server:/opt/yvy-server$ # DNS de los 3 subdominios (desde tu PC)
+keter@yvy-server:/opt/yvy-server$ nslookup yvyedge.com; nslookup edge.yvyedge.com; nslookup api.yvyedge.com
+Server:         192.168.20.1
+Address:        192.168.20.1#53
+
+Non-authoritative answer:
+Name:   yvyedge.com
+Address: 153.67.184.39
+
+Server:         192.168.20.1
+Address:        192.168.20.1#53
+
+Name:   edge.yvyedge.com
+Address: 153.67.184.39
+
+Server:         192.168.20.1
+Address:        192.168.20.1#53
+
+Non-authoritative answer:
+Name:   api.yvyedge.com
+Address: 153.67.184.39
+
+keter@yvy-server:/opt/yvy-server$ TOKEN=$(grep '^YVY_ADMIN_TOKEN' /opt/yvy-server/.env | cut -d= -f2)
+keter@yvy-server:/opt/yvy-server$ docker compose exec yvy-api curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/v1/admin/healthz | python3 -m json.tool
+{
+    "status": "ok",
+    "db_responsive": true,
+    "counts": {
+        "station": 3,
+        "bronze.sensor_raw": 41891,
+        "bronze.empirical_observation_raw": 6,
+        "bronze.empirical_event_raw": 0,
+        "bronze.ingest_log": 41907,
+        "bronze.ingest_failures": 4
+    }
+}
+keter@yvy-server:/opt/yvy-server$ docker compose exec yvy-api curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/v1/admin/stats | python3 -m json.tool
+{
+    "total_attempts": 41907,
+    "total_successes": 41901,
+    "total_failures": 6,
+    "failures_by_class": {
+        "SCHEMA": 6
+    },
+    "attempts_by_endpoint": {
+        "/api/v1/ingest/observation": 12,
+        "/api/v1/ingest/sensor": 41894,
+        "/api/v1/ingest/event": 1
+    }
+}
+keter@yvy-server:/opt/yvy-server$ docker compose exec yvy-api curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8000/api/v1/admin/healthz   # sin token
+401
+
+keter@yvy-server:/opt/yvy-server$ gunzip -t /opt/yvy-server/backups/yvy_20260
+yvy_20260608_171931.sql.gz  yvy_20260616_030001.sql.gz  yvy_20260620_030001.sql.gz  yvy_20260627_030001.sql.gz
+yvy_20260608_173516.sql.gz  yvy_20260616_183627.sql.gz  yvy_20260621_030001.sql.gz  yvy_20260630_030001.sql.gz
+yvy_20260611_030001.sql.gz  yvy_20260617_030001.sql.gz  yvy_20260622_030001.sql.gz  yvy_20260701_030001.sql.gz
+yvy_20260612_030001.sql.gz  yvy_20260617_155655.sql.gz  yvy_20260623_030001.sql.gz  yvy_20260702_030001.sql.gz
+yvy_20260613_030001.sql.gz  yvy_20260618_030001.sql.gz  yvy_20260624_030001.sql.gz  yvy_20260703_030001.sql.gz
+yvy_20260614_030001.sql.gz  yvy_20260618_163620.sql.gz  yvy_20260625_030001.sql.gz  yvy_20260707_030001.sql.gz
+yvy_20260615_030001.sql.gz  yvy_20260619_030001.sql.gz  yvy_20260626_030001.sql.gz  yvy_20260707_135756.sql.gz
+keter@yvy-server:/opt/yvy-server$ gunzip -t /opt/yvy-server/backups/yvy_20260707_135756.sql.gz && echo "GZIP OK"
+GZIP OK
+
+keter@yvy-server:/opt/yvy-server$ zcat /opt/yvy-server/backups/yvy_20260707_135756.sql.gz | docker compose exec -T postg
+res psql -U yvyserver -d yvy_restore_test -q
+ set_config
+------------
+
+(1 row)
+
+ setval
+--------
+      4
+(1 row)
+
+ setval
+--------
+  42057
+(1 row)
+
+ setval
+--------
+      5
+(1 row)
+
+ setval
+--------
+      3
+(1 row)
+
+keter@yvy-server:/opt/yvy-server$ docker compose exec postgres psql -U yvyserver -d yvy_restore_test -c "SELECT COUNT(*) FROM bronze.sensor_raw;"
+ count
+-------
+ 41893
+(1 row)
+
+
+keter@yvy-server:/opt/yvy-server$ docker compose exec postgres dropdb -U yvyserver yvy_restore_test
+keter@yvy-server:/opt/yvy-server$
+
+keter@yvy-server:/opt/yvy-server$ docker compose restart yvy-api
+[+] restart 0/1
+ ⠧ Container yvy-api Restarting                                                                                     0.7s
+keter@yvy-server:/opt/yvy-server$ docker compose ps; docker compose logs --tail=20 yvy-api
+NAME           IMAGE                 COMMAND                  SERVICE    CREATED        STATUS                   PORTS
+yvy-api        yvy-server-yvy-api    "docker-entrypoint.s…"   yvy-api    18 hours ago   Up 6 seconds (healthy)   8000/tcp
+yvy-nginx      nginx:1.27-alpine     "/docker-entrypoint.…"   nginx      18 hours ago   Up 18 hours              0.0.0.0:80->80/tcp, [::]:80->80/tcp, 0.0.0.0:443->443/tcp, [::]:443->443/tcp
+yvy-postgres   yvy-server-postgres   "docker-entrypoint.s…"   postgres   18 hours ago   Up 18 hours (healthy)    5432/tcp
+yvy-api  | INFO:     Shutting down
+yvy-api  | INFO:     Waiting for application shutdown.
+yvy-api  | {"ts": "2026-07-07T17:01:34.385Z", "level": "INFO", "logger": "yvy.main", "msg": "shutting down"}
+yvy-api  | {"ts": "2026-07-07T17:01:34.388Z", "level": "INFO", "logger": "yvy.main", "msg": "shutdown complete"}
+yvy-api  | INFO:     Application shutdown complete.
+yvy-api  | INFO:     Finished server process [1]
+yvy-api  | [entrypoint] Waiting for database to accept connections...
+yvy-api  | [entrypoint] Database is up at postgres:5432 (after 0s).
+yvy-api  | [entrypoint] Running alembic upgrade head...
+yvy-api  | INFO    [alembic.runtime.migration] Context impl PostgresqlImpl.
+yvy-api  | INFO    [alembic.runtime.migration] Will assume transactional DDL.
+yvy-api  | [entrypoint] Migrations applied.
+yvy-api  | [entrypoint] Starting application: uvicorn yvy_server.main:app --host 0.0.0.0 --port 8000
+yvy-api  | INFO:     Started server process [1]
+yvy-api  | INFO:     Waiting for application startup.
+yvy-api  | {"ts": "2026-07-07T17:01:36.488Z", "level": "INFO", "logger": "yvy.main", "msg": "starting up", "version": "0.9.1-dev+unknown", "env": "production", "log_level": "INFO", "supported_schemas": ["1.0"], "clock_skew_max_seconds": 1800}
+yvy-api  | {"ts": "2026-07-07T17:01:36.531Z", "level": "INFO", "logger": "yvy.main", "msg": "startup complete; ready to serve requests", "initial_sync_version": 5}
+yvy-api  | INFO:     Application startup complete.
+yvy-api  | INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+yvy-api  | INFO:     127.0.0.1:45338 - "GET /api/v1/healthz HTTP/1.1" 200 OK
+keter@yvy-server:/opt/yvy-server$ docker compose exec yvy-api curl -s http://localhost:8000/api/v1/healthz
+{"status":"ok"}keter@yvy-server:/opt/yvy-server$
+
+
+
+keter@yvy-server:/opt/yvy-server$ docker compose down
+[+] down 4/4
+ ✔ Container yvy-nginx    Removed                                                                                   2.9s
+ ✔ Container yvy-api      Removed                                                                                   0.6s
+ ✔ Container yvy-postgres Removed                                                                                   0.5s
+ ✔ Network yvy-internal   Removed                                                                                   0.2s
+keter@yvy-server:/opt/yvy-server$ docker compose up -d
+[+] up 3/4
+[+] up 4/4 yvy-internal   Created                                                                                   0.0s
+ ✔ Network yvy-internal   Created                                                                                   0.0s
+ ✔ Container yvy-postgres Healthy                                                                                   6.1s
+ ✔ Container yvy-api      Healthy                                                                                  11.7s
+ ✔ Container yvy-nginx    Started                                                                                  11.9s
+keter@yvy-server:/opt/yvy-server$
+keter@yvy-server:/opt/yvy-server$ docker compose ps
+NAME           IMAGE                 COMMAND                  SERVICE    CREATED          STATUS                    PORTS
+yvy-api        yvy-server-yvy-api    "docker-entrypoint.s…"   yvy-api    13 seconds ago   Up 7 seconds (healthy)    8000/tcp
+yvy-nginx      nginx:1.27-alpine     "/docker-entrypoint.…"   nginx      13 seconds ago   Up 1 second               0.0.0.0:80->80/tcp, [::]:80->80/tcp, 0.0.0.0:443->443/tcp, [::]:443->443/tcp
+yvy-postgres   yvy-server-postgres   "docker-entrypoint.s…"   postgres   13 seconds ago   Up 13 seconds (healthy)   5432/tcp
+
+recuperación tras reboot -- esta OK todo eso
+
+keter@yvy-server:/opt/yvy-server$ git -C server-code status --porcelain
+keter@yvy-server:/opt/yvy-server$ diff /opt/yvy-server/docker-compose.yml /opt/yvy-server/server-code/docker-compose.yml
+1,3c1
+< # /opt/yvy-server/docker-compose.yml
+<  # YVY Server — stack de producción: PostgreSQL + FastAPI + nginx
+<  # NO usar el docker-compose.yml del directorio server-code/ (es para desarrollo).
+---
+> name: yvy
+5,27c3,24
+<  services:
+<    postgres:
+<      build:
+<       context: ./postgres
+<       dockerfile: Dockerfile
+<      container_name: yvy-postgres
+<      restart: unless-stopped
+<      environment:
+<        POSTGRES_DB: ${POSTGRES_DB:-yvy}
+<        POSTGRES_USER: ${POSTGRES_USER:-yvyserver}
+<        POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD no está en .env}
+<        POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+<      volumes:
+<        - ./data/postgres:/var/lib/postgresql/data
+<      networks:
+<        - yvy-internal
+<      healthcheck:
+<        test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-yvyserver} -d ${POSTGRES_DB:-yvy}"]
+<        interval: 10s
+<        timeout: 5s
+<        retries: 5
+<        start_period: 10s
+<        # SIN ports: PostgreSQL no expuesto al host. Solo accesible desde yvy-internal.
+---
+> services:
+>   postgres:
+>     image: postgres:16-alpine
+>     restart: unless-stopped
+>     environment:
+>       POSTGRES_DB: ${POSTGRES_DB:-yvy}
+>       POSTGRES_USER: ${POSTGRES_USER:-yvy}
+>       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-yvy}
+>       # tune locale + collation para evitar warnings
+>       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+>     volumes:
+>       - postgres_data:/var/lib/postgresql/data
+>     ports:
+>       # Expuesto al host para que pytest local pueda conectarse.
+>       # En production cerrarlo (los tests no corren ahí).
+>       - "5432:5432"
+>     healthcheck:
+>       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-yvy} -d ${POSTGRES_DB:-yvy}"]
+>       interval: 5s
+>       timeout: 3s
+>       retries: 10
+>       start_period: 5s
+29,68c26,49
+<    yvy-api:
+<      build:
+<        context: ./server-code
+<        dockerfile: Dockerfile
+<        args:
+<          # Inyectar info de versión en la imagen para que /api/v1/serverinfo la muestre.
+<          # Estas variables se pasan en el comando docker compose build (ver §6.1).
+<          GIT_COMMIT: ${GIT_COMMIT:-unknown}
+<          GIT_COMMIT_SHORT: ${GIT_COMMIT_SHORT:-unknown}
+<          BUILD_DATE: ${BUILD_DATE:-unknown}
+<      container_name: yvy-api
+<      restart: unless-stopped
+<      depends_on:
+<         postgres:
+<            condition: service_healthy
+<      environment:
+<          # YVY_ENV=production activa validaciones estrictas del código:
+<          # - admin token debe ser >= 32 chars y sin "CHANGE_ME"
+<          # - logs más detallados de errores
+<          YVY_ENV: production
+<          # DSN construido desde las vars POSTGRES_* para no repetir el password
+<          YVY_DB_DSN: postgresql+asyncpg://${POSTGRES_USER:-yvyserver}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-yvy}
+<          YVY_ADMIN_TOKEN: ${YVY_ADMIN_TOKEN:?YVY_ADMIN_TOKEN no está en .env}
+<          YVY_LOG_LEVEL: ${YVY_LOG_LEVEL:-INFO}
+<          YVY_SUPPORTED_SCHEMAS: "1.0"
+<          YVY_CLOCK_SKEW_MAX_SECONDS: "1800"
+<          YVY_CLOCK_SKEW_WARN_SECONDS: "300"
+<          YVY_RELEASES_DIR: ${YVY_RELEASES_DIR:-/app/data/releases}
+<      networks:
+<          - yvy-internal
+<      volumes:
+<          - ./logs/api:/app/logs
+<          - ./data/releases:/app/data/releases
+<      healthcheck:
+<         test: ["CMD-SHELL", "curl -fsS http://localhost:8000/api/v1/healthz || exit 1" ]
+<         interval: 15s
+<         timeout: 5s
+<         retries: 5
+<         start_period: 30s
+<        # SIN ports: FastAPI no expuesto al host. Solo accesible desde nginx via yvy-internal.
+---
+>   app:
+>     build:
+>       context: .
+>       dockerfile: Dockerfile
+>     restart: unless-stopped
+>     depends_on:
+>       postgres:
+>         condition: service_healthy
+>     environment:
+>       YVY_ENV: ${YVY_ENV:-local}
+>       YVY_LOG_LEVEL: ${YVY_LOG_LEVEL:-INFO}
+>       # DSN apunta al servicio postgres dentro de la network de compose
+>       YVY_DB_DSN: postgresql+asyncpg://${POSTGRES_USER:-yvy}:${POSTGRES_PASSWORD:-yvy}@postgres:5432/${POSTGRES_DB:-yvy}
+>       YVY_DB_POOL_SIZE: ${YVY_DB_POOL_SIZE:-10}
+>       YVY_DB_MAX_OVERFLOW: ${YVY_DB_MAX_OVERFLOW:-5}
+>       YVY_ADMIN_TOKEN: ${YVY_ADMIN_TOKEN:?ERROR_YVY_ADMIN_TOKEN_must_be_set_in_env}
+>       YVY_SUPPORTED_SCHEMAS: ${YVY_SUPPORTED_SCHEMAS:-1.0}
+>       YVY_CLOCK_SKEW_MAX_SECONDS: ${YVY_CLOCK_SKEW_MAX_SECONDS:-1800}
+>       YVY_CLOCK_SKEW_WARN_SECONDS: ${YVY_CLOCK_SKEW_WARN_SECONDS:-300}
+>       YVY_HOST: ${YVY_HOST:-0.0.0.0}
+>       YVY_PORT: ${YVY_PORT:-8000}
+>     # Puerto 8000 no expuesto al host — nginx es el único punto de entrada
+>     expose:
+>       - "8000"
+70,85c51,62
+<    nginx:
+<      image: nginx:1.27-alpine
+<      container_name: yvy-nginx
+<      restart: unless-stopped
+<      ports:
+<        - "80:80"
+<        - "443:443"
+<      volumes:
+<        - ./nginx/conf/nginx.conf:/etc/nginx/nginx.conf:ro
+<        - /etc/letsencrypt:/etc/letsencrypt:ro
+<        - ./logs/nginx:/var/log/nginx
+<      depends_on:
+<        yvy-api:
+<          condition: service_healthy
+<      networks:
+<        - yvy-internal
+---
+>   nginx:
+>     image: nginx:1.27-alpine
+>     restart: unless-stopped
+>     depends_on:
+>       - app
+>     ports:
+>       - "80:80"
+>       - "443:443"
+>     volumes:
+>       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+>       - /etc/letsencrypt:/etc/letsencrypt:ro
+>       - certbot_webroot:/var/www/certbot:ro
+87,90c64,68
+<  networks:
+<    yvy-internal:
+<      driver: bridge
+<      name: yvy-internal
+---
+> volumes:
+>   postgres_data:
+>     driver: local
+>   certbot_webroot:
+>     driver: local
+
+keter@yvy-server:/opt/yvy-server$ keter@yvy-server:/opt/yvy-server$ diff /opt/yvy-server/nginx/conf/nginx.conf /opt/yvy-server/server-code/nginx/nginx.conf
+1,10d0
+< # /opt/yvy-server/nginx/conf/nginx.conf
+< # YVY Server — reverse proxy de producción
+<
+< user nginx;
+< worker_processes auto;
+< worker_rlimit_nofile 65536;
+<
+< error_log /var/log/nginx/error.log warn;
+< pid /var/run/nginx.pid;
+<
+12,14c2
+<       worker_connections 1024;
+<       use epoll;
+<       multi_accept on;
+---
+>     worker_connections 1024;
+18,148c6,58
+<       include /etc/nginx/mime.types;
+<       default_type application/octet-stream;
+<       log_format main '$remote_addr - [$time_iso8601] '
+<                       '"$request" $status $body_bytes_sent '
+<                       'rt=$request_time urt=$upstream_response_time';
+<       access_log /var/log/nginx/access.log main;
+<
+<       sendfile on;
+<       tcp_nopush on;
+<       tcp_nodelay on;
+<       keepalive_timeout 65;
+<       server_tokens off;
+<
+<       # Cap defensivo: requests YVY son pequeños (< 50KB)
+<       client_max_body_size 1m;
+<       client_body_timeout 10s;
+<       client_header_timeout 10s;
+<
+<       # Rate limiting: 60 requests/min sostenido, burst 30
+<       limit_req_zone $binary_remote_addr zone=yvy_ingest:10m rate=60r/m;
+<
+<       # ─── HTTPS principal ─────────────────────────────────────────────────
+<       server {
+<               listen 443 ssl http2;
+<               server_name yvyedge.com;
+<
+<               ssl_certificate /etc/letsencrypt/live/yvyedge.com/fullchain.pem;
+<               ssl_certificate_key /etc/letsencrypt/live/yvyedge.com/privkey.pem;
+<               ssl_protocols TLSv1.2 TLSv1.3;
+<               ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
+<               ssl_prefer_server_ciphers off;
+<               ssl_session_timeout 1d;
+<               ssl_session_cache shared:YVY_SSL:10m;
+<               ssl_session_tickets off;
+<               ssl_stapling on;
+<               ssl_stapling_verify on;
+<
+<               add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+<               add_header X-Content-Type-Options "nosniff" always;
+<               add_header X-Frame-Options "DENY" always;
+<               add_header Referrer-Policy "no-referrer" always;
+<
+<               # Healthcheck público (sin auth, sin rate limit)
+<               location = /api/v1/healthz {
+<                       proxy_pass http://yvy-api:8000;
+<                       proxy_set_header Host $host;
+<                       proxy_set_header X-Real-IP $remote_addr;
+<                       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+<                       proxy_set_header X-Forwarded-Proto https;
+<                       proxy_connect_timeout 5s;
+<                       proxy_read_timeout 5s;
+<               }
+<
+<               # Server info público
+<               location = /api/v1/serverinfo {
+<                       proxy_pass http://yvy-api:8000;
+<                       proxy_set_header Host $host;
+<                       proxy_set_header X-Real-IP $remote_addr;
+<                       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+<                       proxy_set_header X-Forwarded-Proto https;
+<                       proxy_connect_timeout 5s;
+<                       proxy_read_timeout 5s;
+<               }
+<
+<               # Ingest endpoints (con rate limit)
+<               location /api/v1/ingest/ {
+<                       limit_req zone=yvy_ingest burst=30 nodelay;
+<                       proxy_pass http://yvy-api:8000;
+<                       proxy_set_header Host $host;
+<                       proxy_set_header X-Real-IP $remote_addr;
+<                       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+<                       proxy_set_header X-Forwarded-Proto https;
+<                       proxy_connect_timeout 5s;
+<                       proxy_send_timeout 15s;
+<                       proxy_read_timeout 15s;
+<               }
+<
+<               # Admin endpoints (requieren bearer token — lo valida la API, no nginx)
+<               location /api/v1/admin/ {
+<                       proxy_pass http://yvy-api:8000;
+<                       proxy_set_header Host $host;
+<                       proxy_set_header X-Real-IP $remote_addr;
+<                       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+<                       proxy_set_header X-Forwarded-Proto https;
+<                       proxy_connect_timeout 5s;
+<                       proxy_read_timeout 30s;
+<               }
+<
+<               # Canal Core→Edge: sync y descarga de updates
+<               # Timeouts extendidos para descarga de packages (40+ MB en conectividad IEA)
+<               location /api/v1/edge/ {
+<                       proxy_pass http://yvy-api:8000;
+<                       proxy_set_header Host $host;
+<                       proxy_set_header X-Real-IP $remote_addr;
+<                       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+<                       proxy_set_header X-Forwarded-Proto https;
+<                       proxy_connect_timeout 5s;
+<                       proxy_send_timeout 300s;
+<                       proxy_read_timeout 300s;
+<                       # Sin buffering: streaming directo del binario al Edge
+<                       proxy_buffering off;
+<                       proxy_request_buffering off;
+<               }
+<
+<               # Cualquier otra ruta: 404
+<               location / {
+<                       return 404 "Not Found\n";
+<               }
+<       } # <--- cierra el server HTTPS
+<
+<       # ─── HTTP → HTTPS redirect ───────────────────────────────────────────
+<       server {
+<               listen 80;
+<               server_name yvyedge.com;
+<               return 301 https://$server_name$request_uri;
+<       }
+<
+<       # ─── Healthcheck interno para Docker (puerto 80 default server) ──────
+<       # Este bloque responde al healthcheck de docker compose.
+<       # No es accesible desde Internet (solo desde dentro de la red de containers).
+<       server {
+<               listen 80 default_server;
+<               server_name _;
+<               location = /healthz {
+<                       access_log off;
+<                       return 200 "ok\n";
+<               }
+<               location / {
+<                       return 444;
+<               }
+<       }
+---
+>     # HTTP → HTTPS redirect
+>     server {
+>         listen 80;
+>         server_name edge.yvyedge.com;
+>
+>         # Let's Encrypt webroot challenge (renovación automática)
+>         location /.well-known/acme-challenge/ {
+>             root /var/www/certbot;
+>         }
+>
+>         location / {
+>             return 301 https://$host$request_uri;
+>         }
+>     }
+>
+>     server {
+>         listen 443 ssl;
+>         server_name edge.yvyedge.com;
+>
+>         ssl_certificate     /etc/letsencrypt/live/edge.yvyedge.com/fullchain.pem;
+>         ssl_certificate_key /etc/letsencrypt/live/edge.yvyedge.com/privkey.pem;
+>         ssl_protocols       TLSv1.2 TLSv1.3;
+>         ssl_ciphers         HIGH:!aNULL:!MD5;
+>         ssl_session_cache   shared:SSL:10m;
+>         ssl_session_timeout 10m;
+>
+>         # Proxy headers comunes
+>         proxy_set_header Host              $host;
+>         proxy_set_header X-Real-IP         $remote_addr;
+>         proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+>         proxy_set_header X-Forwarded-Proto https;
+>
+>         # Ingest + admin + serverinfo + healthz
+>         location /api/v1/ {
+>             proxy_pass            http://app:8000;
+>             proxy_connect_timeout 10s;
+>             proxy_send_timeout    60s;
+>             proxy_read_timeout    60s;
+>         }
+>
+>         # Descarga de packages Edge — timeouts extendidos, sin buffering
+>         location /api/v1/edge/updates/ {
+>             proxy_pass              http://app:8000;
+>             proxy_send_timeout      300s;
+>             proxy_read_timeout      300s;
+>             proxy_buffering         off;
+>             proxy_request_buffering off;
+>         }
+>
+>         location / {
+>             return 404 "Not Found\n";
+>         }
+>     }
+
+keter@yvy-server:/opt/yvy-server$ serverinfo.git_commit_short
+-bash: serverinfo.git_commit_short: orden no encontrada
+keter@yvy-server:/opt/yvy-server$ git rev-parse --short HEAD
+fatal: no es un repositorio git (ni ninguno de los directorios superiores): .git
+keter@yvy-server:/opt/yvy-server$
+
+
+keter@yvy-server:/opt/yvy-server$ ls /opt/yvy-server/scripts/
+backup_postgres.sh  monitor.sh  restore_postgres.sh
+keter@yvy-server:/opt/yvy-server$ ls server-code/scripts/
+embed_version.py  smoke_e2e.py
+
+keter@yvy-server:/opt/yvy-server$ ls /opt/yvy-server/secrets/ /opt/yvy-server/*.json 2>/dev/null
+/opt/yvy-server/secrets/:
+credentials.txt        iea7_credentials.json.info  pg_password_yvyserver.txt
+iea7_credentials.json  pg_password_yvyreader.txt   yvy_admin_token.txt
+

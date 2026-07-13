@@ -39,6 +39,10 @@ coverage.xml
 .env.*
 !.env.example
 
+# ─── Claude Code (config local por-usuario) ──────────────────────────────
+.claude/settings.local.json
+# ^ Permisos personales de la instancia; CLAUDE.md sí se puede commitear.
+
 # ─── Versioning ──────────────────────────────────────────────────────────
 src/yvy_server/_version.py
 # ^ Generado por scripts/embed_version.py en build time. Nunca se commitea.

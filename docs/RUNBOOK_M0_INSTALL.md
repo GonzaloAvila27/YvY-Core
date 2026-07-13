@@ -1,6 +1,22 @@
 # YVY · RUNBOOK DE INSTALACIÓN — Migración M0 (Modelo Canónico)
 
-**Versión:** 1.0
+> ## ⚠️ SUPERSEDIDO (2026-07-07)
+>
+> Este runbook fue reemplazado por
+> **`RUNBOOK_DESPLIEGUE_M0_DQS_WEBCORE_2026-07-07.md` §E2**, que incorpora:
+> - la auditoría del servidor del 07-jul (Fase 2A ya aplicada, conteos reales ~41.9k,
+>   3 estaciones, pre-check de schemas canónicos manuales),
+> - los fixes de código QW1-QW6 (bloqueantes descubiertos en la auditoría de código),
+> - correcciones de comandos que acá están MAL: los `docker compose run --rm yvy-api
+>   poetry run alembic ...` fallan (el runtime de producción NO tiene poetry — usar
+>   `alembic` directo), el usuario de psql es `yvyserver` (no `yvy`), y los smoke
+>   tests con `https://yvyedge.com/healthz` usan rutas/dominios incorrectos
+>   (es `https://edge.yvyedge.com/api/v1/healthz`).
+>
+> Se conserva como referencia histórica del diseño de la ventana. **NO ejecutar
+> comandos de este documento.**
+
+**Versión:** 1.0 (histórica)
 **Fecha:** 15-Jun-2026
 **Rama:** `plan_fases_api` → merge a `master`
 **Ejecutores:** Luis (SysAdmin) + Gonzalo (admin de proyecto)
