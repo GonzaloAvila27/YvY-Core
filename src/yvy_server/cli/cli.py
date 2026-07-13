@@ -41,6 +41,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 import typer
+from sqlalchemy import text as sql_text
 
 from yvy_server import __version__
 from yvy_server.config import get_settings
@@ -102,9 +103,10 @@ def create_station(
     """Register a new edge station.
 
     Generates a UUID4 and a 32-byte (256-bit) HMAC-SHA256 key. Inserts
-    the rows in ``station`` and ``station_credentials`` (key_version=1).
-    Prints the credentials JSON to stdout for the operator to deliver
-    to the IEA.
+    the rows in ``station``, ``station_credentials`` (key_version=1) and
+    ``canonical.source`` (post-M0: sin source la estación no puede
+    ingestar). Prints the credentials JSON to stdout for the operator
+    to deliver to the IEA.
 
     The JSON contains: ``station_uuid``, ``key_version``, ``key_hmac_hex``,
     ``name``, ``created_at_utc``. The edge needs at minimum
@@ -200,10 +202,16 @@ async def _persist_station(
     key_hmac_hex: str,
     created_at: datetime,
 ) -> None:
-    """Open an engine, insert station + credential atomically, dispose.
+    """Open an engine, insert station + credential + source atomically, dispose.
 
     Single transaction with ``session.flush()`` between adds so the
     FK constraint on ``station_credentials.station_uuid`` is satisfied.
+
+    Post-M0: la ingesta resuelve ``station_uuid`` → ``canonical.source``
+    (``BronzeRepository._resolve_source_id``). Sin la fila en
+    ``canonical.source`` la estación queda registrada pero NO puede
+    ingestar (LookupError → 500). Por eso el source se crea acá, en la
+    misma transacción (requisito del RUNBOOK_CICDv3 §5).
     """
     engine, factory = create_engine_and_session_factory(settings)
     try:
@@ -233,6 +241,33 @@ async def _persist_station(
                     deactivated_at=None,
                     reason=None,
                 ),
+            )
+            # canonical.source — mismo shape de metadata que el backfill de la
+            # migración 003 (las views públicas leen metadata->>'locality', etc).
+            await session.execute(
+                sql_text(
+                    """
+                    INSERT INTO canonical.source
+                        (source_id, source_type_key, external_ref, name, metadata, active)
+                    VALUES
+                        (:source_id, 'weather_station', :external_ref, :name,
+                         CAST(:metadata AS jsonb), true)
+                    ON CONFLICT (source_type_key, external_ref) DO NOTHING
+                    """
+                ),
+                {
+                    "source_id": uuid4(),
+                    "external_ref": str(station_uuid),
+                    "name": name,
+                    "metadata": json.dumps(
+                        {
+                            "locality": location_name,
+                            "province": "Misiones",
+                            "latitude": location_lat,
+                            "longitude": location_lon,
+                        }
+                    ),
+                },
             )
     finally:
         await dispose_engine(engine)

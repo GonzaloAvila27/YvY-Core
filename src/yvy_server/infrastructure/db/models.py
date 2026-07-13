@@ -116,8 +116,9 @@ class StationCredentialORM(Base):
 class RawRecordORM(Base):
     """Maps ``bronze.raw_record`` — tabla genérica post-M0.
 
-    Particionada por ``received_at``. SQLAlchemy soporta INSERT en tablas
-    particionadas sin configuración especial.
+    SIN particionar (decisión D-1, 2026-07-07): el particionado por
+    ``received_at`` obligaba a una PK compuesta que rompía la idempotencia
+    por ``event_id``. Se reintroduce cuando el volumen lo justifique.
 
     ``record_id`` es el ``event_id`` original del envelope del Edge,
     preservando idempotencia (ON CONFLICT DO NOTHING sobre record_id).

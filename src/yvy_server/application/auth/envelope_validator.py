@@ -154,7 +154,17 @@ def check_clock_skew(
     Returns the measured skew in seconds (rounded to int) on success.
     The use case persists this in ``ingest_log.skew_seconds`` for stats.
     """
-    sent_at_utc = _parse_iso_utc(envelope["sent_at_utc"])
+    # Timestamp malformado = error de schema del cliente (400), no un 500.
+    # Se chequea acá (post-HMAC) porque la firma cubre el string tal cual;
+    # el contenido puede igual ser inválido como ISO 8601.
+    try:
+        sent_at_utc = _parse_iso_utc(str(envelope["sent_at_utc"]))
+    except ValueError as exc:
+        raise EnvelopeShapeError(
+            f"Malformed sent_at_utc (expected ISO 8601 UTC): {exc}",
+            station_uuid=station_uuid,
+            event_id=event_id,
+        ) from exc
     skew = int(abs((received_at_utc - sent_at_utc).total_seconds()))
 
     if skew > max_seconds:
@@ -232,10 +242,16 @@ class EnvelopeValidator:
         # 1. Pre-HMAC shape
         validate_shape(envelope, self._supported_schemas)
 
-        # 2. Extract identifiers (safe now — shape validated)
-        station_uuid = UUID(envelope["station_uuid"])
-        event_id = UUID(envelope["event_id"])
-        key_version = int(envelope["key_version"])
+        # 2. Extract identifiers (shape garantiza presencia, NO tipos).
+        # Un valor presente pero malformado ("banana" como UUID) es un
+        # error del cliente → 400 SCHEMA, nunca 500 (un 500 haría que el
+        # Edge lo clasifique SERVER y reintente para siempre).
+        try:
+            station_uuid = UUID(str(envelope["station_uuid"]))
+            event_id = UUID(str(envelope["event_id"]))
+            key_version = int(envelope["key_version"])
+        except (ValueError, TypeError) as exc:
+            raise EnvelopeShapeError(f"Malformed identifier field in envelope: {exc}") from exc
 
         # 3. Resolve station
         station = await self._station_repo.get_by_uuid(session, station_uuid)

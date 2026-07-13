@@ -11,7 +11,8 @@ Qué hace:
   4. Instala extensiones: pgvector (requerido), PostGIS (latente, graceful si no está).
   5. Crea tablas canónicas (unit, source_type, variable, source, sensor, indicator).
   6. Siembra catálogo canónico (unidades, source_types, 10 variables meteorológicas).
-  7. Crea bronze.raw_record (particionado por received_at).
+  7. Crea bronze.raw_record (SIN particionar — decisión D-1 2026-07-07: PK simple
+     record_id para preservar idempotencia por event_id vía ON CONFLICT).
   8. Backfillea bronze.*_raw → bronze.raw_record (con verificación de conteos).
   9. Dropea bronze.sensor_raw, empirical_observation_raw, empirical_event_raw.
  10. Crea silver.measurement, gold.indicator_value, knowledge.*, auth.*, exports.*,
@@ -547,11 +548,17 @@ def upgrade() -> None:
     """)
     )
 
-    # ── 7. bronze.raw_record (particionado) ──────────────────────────────────
+    # ── 7. bronze.raw_record ──────────────────────────────────────────────────
+    # Decisión D-1 (2026-07-07): SIN particionado. Una tabla particionada por
+    # received_at obliga a PK compuesta (record_id, received_at), lo que rompe
+    # la idempotencia por event_id (ON CONFLICT (record_id) requiere un índice
+    # único sobre record_id solo, imposible en tabla particionada por otra
+    # columna). Al volumen actual (~42k filas) el particionado no rinde; se
+    # reintroduce como migración planificada cuando haya ≥6 IEAs activas.
     conn.execute(
         sa.text("""
         CREATE TABLE bronze.raw_record (
-            record_id      uuid        NOT NULL,
+            record_id      uuid        PRIMARY KEY,
             source_id      uuid        NOT NULL REFERENCES canonical.source,
             source_type    text        NOT NULL,
             record_kind    text        NOT NULL,
@@ -559,14 +566,9 @@ def upgrade() -> None:
             schema_version text        NOT NULL,
             observed_at    timestamptz,
             received_at    timestamptz NOT NULL,
-            ingestion_meta jsonb,
-            PRIMARY KEY (record_id, received_at)
-        ) PARTITION BY RANGE (received_at)
+            ingestion_meta jsonb
+        )
     """)
-    )
-
-    conn.execute(
-        sa.text("CREATE TABLE bronze.raw_record_default " "PARTITION OF bronze.raw_record DEFAULT")
     )
 
     conn.execute(

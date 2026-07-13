@@ -556,3 +556,95 @@ class TestEnvelopeValidator:
         result = asyncio.run(validator.validate(_SESSION, envelope, specific_received_at))
 
         assert result.received_at_utc == specific_received_at
+
+
+# ─── 5. Valores presentes pero malformados → SCHEMA, nunca 500 (QW4) ─────
+
+
+class TestMalformedFieldValues:
+    """Campos presentes pero con valores no coercionables.
+
+    Antes del fix QW4 (jul-2026) estos casos levantaban ``ValueError``
+    crudo, que escapaba del use case como 500 SERVER → el Edge lo
+    reintentaba para siempre (mensaje veneno). El contrato correcto es
+    400 SCHEMA (``EnvelopeShapeError``) → DLQ inmediato en el Edge.
+    """
+
+    def _validator_with_data(self) -> EnvelopeValidator:
+        station_repo = _FakeStationRepo()
+        station_repo.add(_make_station())
+        cred_repo = _FakeCredentialRepo()
+        cred_repo.add(_make_credential())
+        return _make_validator(station_repo, cred_repo)
+
+    def test_station_uuid_not_a_uuid_raises_shape_error(self) -> None:
+        validator = self._validator_with_data()
+        envelope = _sign(_valid_envelope_no_sig())
+        envelope["station_uuid"] = "banana"
+
+        with pytest.raises(EnvelopeShapeError):
+            asyncio.run(validator.validate(_SESSION, envelope, datetime.now(UTC)))
+
+    def test_event_id_not_a_uuid_raises_shape_error(self) -> None:
+        validator = self._validator_with_data()
+        envelope = _sign(_valid_envelope_no_sig())
+        envelope["event_id"] = "no-soy-un-uuid"
+
+        with pytest.raises(EnvelopeShapeError):
+            asyncio.run(validator.validate(_SESSION, envelope, datetime.now(UTC)))
+
+    def test_key_version_not_an_int_raises_shape_error(self) -> None:
+        validator = self._validator_with_data()
+        envelope = _sign(_valid_envelope_no_sig())
+        envelope["key_version"] = "x"
+
+        with pytest.raises(EnvelopeShapeError):
+            asyncio.run(validator.validate(_SESSION, envelope, datetime.now(UTC)))
+
+    def test_key_version_none_raises_shape_error(self) -> None:
+        """None dispara TypeError en int() — también debe ser SCHEMA."""
+        validator = self._validator_with_data()
+        envelope = _sign(_valid_envelope_no_sig())
+        envelope["key_version"] = None
+
+        with pytest.raises(EnvelopeShapeError):
+            asyncio.run(validator.validate(_SESSION, envelope, datetime.now(UTC)))
+
+    def test_malformed_field_short_circuits_before_db(self) -> None:
+        """La coerción falla ANTES de tocar los repos."""
+        station_repo = _FakeStationRepo()
+        cred_repo = _FakeCredentialRepo()
+        validator = _make_validator(station_repo, cred_repo)
+
+        envelope = _sign(_valid_envelope_no_sig())
+        envelope["station_uuid"] = "banana"
+
+        with pytest.raises(EnvelopeShapeError):
+            asyncio.run(validator.validate(_SESSION, envelope, datetime.now(UTC)))
+
+        assert station_repo.get_calls == []
+        assert cred_repo.get_calls == []
+
+    def test_malformed_sent_at_utc_raises_shape_error_post_hmac(self) -> None:
+        """sent_at_utc firmado pero no parseable como ISO → SCHEMA (no CLOCK ni 500).
+
+        La firma HMAC cubre el string tal cual, así que un envelope
+        firmado con ``sent_at_utc="ayer"`` pasa HMAC y recién falla al
+        parsear el timestamp.
+        """
+        validator = self._validator_with_data()
+        envelope = _sign(_valid_envelope_no_sig(sent_at_utc="ayer"))
+
+        with pytest.raises(EnvelopeShapeError) as excinfo:
+            asyncio.run(validator.validate(_SESSION, envelope, datetime.now(UTC)))
+
+        # Post-HMAC: la excepción ya conoce la estación
+        assert excinfo.value.station_uuid == _STATION_UUID
+        assert excinfo.value.event_id == _EVENT_ID
+
+    def test_check_clock_skew_malformed_timestamp_direct(self) -> None:
+        """La función pura también traduce ValueError → EnvelopeShapeError."""
+        envelope = _valid_envelope_no_sig(sent_at_utc="2026-13-45T99:99:99Z")
+
+        with pytest.raises(EnvelopeShapeError):
+            check_clock_skew(envelope, datetime.now(UTC), MAX_SKEW_SECONDS)

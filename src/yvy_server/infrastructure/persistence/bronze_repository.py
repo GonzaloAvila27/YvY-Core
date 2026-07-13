@@ -1,9 +1,10 @@
 """Bronze repository — idempotent UPSERT to ``bronze.raw_record`` (post-M0).
 
 Records are stored in the single generic table ``bronze.raw_record``
-partitioned by ``received_at``.  The three typed tables that existed
-before M0 (sensor_raw, empirical_observation_raw, empirical_event_raw)
-were dropped in migration 003_m0_canonical_model.
+(sin particionar — decisión D-1 2026-07-07, PK simple ``record_id``).
+The three typed tables that existed before M0 (sensor_raw,
+empirical_observation_raw, empirical_event_raw) were dropped in
+migration 003_m0_canonical_model.
 
 Station → source_id resolution
 --------------------------------
@@ -25,6 +26,7 @@ Edge envelope), preserving deduplication semantics byte-for-byte.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import ClassVar
 from uuid import UUID as PyUUID
 
@@ -137,7 +139,7 @@ class BronzeRepository:
                 record_kind=record_kind,
                 payload=event.payload,
                 schema_version=event.schema_version,
-                observed_at=event.sent_at_utc,
+                observed_at=self._extract_observed_at(event),
                 received_at=event.received_at_utc,
                 ingestion_meta={
                     "key_version": event.key_version_used,
@@ -150,3 +152,29 @@ class BronzeRepository:
         )
         result = await session.execute(stmt)
         return result.scalar_one_or_none() is not None
+
+    @staticmethod
+    def _extract_observed_at(event: IngestEvent) -> datetime:
+        """Momento de la observación, extraído del payload.
+
+        Misma semántica que el backfill de la migración 003
+        (``payload->>'observed_at_utc'``). Claves según entity_type:
+        ``observed_at_utc`` (empirical_observation) u ``observed_at``
+        (sensor_reading, ISO de pywws). Si el payload no trae ninguna o
+        no parsea, cae a ``sent_at_utc`` del envelope (mejor aproximación
+        disponible; el payload crudo queda intacto para re-derivar).
+        """
+        for key in ("observed_at_utc", "observed_at"):
+            raw = event.payload.get(key)
+            if isinstance(raw, str):
+                try:
+                    value = raw[:-1] + "+00:00" if raw.endswith("Z") else raw
+                    parsed = datetime.fromisoformat(value)
+                except ValueError:
+                    continue
+                # pywws puede emitir ISO sin timezone — se asume UTC
+                # (contrato del Edge: todos los timestamps son UTC).
+                if parsed.tzinfo is None:
+                    parsed = parsed.replace(tzinfo=UTC)
+                return parsed
+        return event.sent_at_utc
