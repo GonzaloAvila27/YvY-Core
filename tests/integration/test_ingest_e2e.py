@@ -123,8 +123,14 @@ def station(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Any]:
 
 @pytest.fixture(scope="module")
 def client() -> Any:
-    """TestClient con lifespan real (startup carga source_cache, etc.)."""
-    with TestClient(create_app()) as c:
+    """TestClient con lifespan real (startup carga source_cache, etc.).
+
+    ``client=("127.0.0.1", 50000)``: el default de Starlette es el literal
+    "testclient", que NO es una IP — la columna ``ingest_log.request_ip``
+    es INET y asyncpg rechaza el INSERT (DataError). En producción el
+    host siempre es una IP real (viene del socket vía uvicorn).
+    """
+    with TestClient(create_app(), client=("127.0.0.1", 50000)) as c:
         yield c
 
 
