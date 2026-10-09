@@ -115,9 +115,7 @@ class IngestLogRepository:
             .where(IngestLogORM.failure_class.is_not(None))
             .group_by(IngestLogORM.failure_class)
         )
-        stats.failures_by_class = {
-            row[0]: row[1] for row in fc_result.all() if row[0] is not None
-        }
+        stats.failures_by_class = {row[0]: row[1] for row in fc_result.all() if row[0] is not None}
 
         # Attempts grouped by endpoint
         ep_result = await session.execute(
