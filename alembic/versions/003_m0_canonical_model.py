@@ -69,6 +69,34 @@ _REAL_STATIONS: list[tuple[str, str, str | None, str | None, bool]] = [
 ]
 
 
+# ─── Timestamp de observación (C-2) ──────────────────────────────────────────
+# Misma prioridad que BronzeRepository._extract_observed_at:
+#   payload.observed_at_utc → payload.observed_at → sent_at_utc del envelope.
+# El payload real de sensor_raw usa "observed_at"; observed_at_utc lo usan las
+# observaciones empíricas. Un valor que no parsea como timestamp se ignora
+# (NULL) en lugar de abortar la migración. Los timestamps sin zona se toman
+# como UTC (la migración fija la zona en +00:00), igual que el repositorio.
+_TRY_TIMESTAMPTZ_FN = """
+CREATE FUNCTION pg_temp.yvy_try_timestamptz(value text) RETURNS timestamptz
+LANGUAGE plpgsql IMMUTABLE AS $$
+BEGIN
+  RETURN value::timestamptz;
+EXCEPTION WHEN others THEN
+  RETURN NULL;
+END
+$$
+"""
+
+
+def _observed_at_sql(alias: str) -> str:
+    """Expresión SQL del timestamp de observación para una fila ``*_raw``."""
+    return (
+        f"COALESCE(pg_temp.yvy_try_timestamptz({alias}.payload->>'observed_at_utc'), "
+        f"pg_temp.yvy_try_timestamptz({alias}.payload->>'observed_at'), "
+        f"{alias}.sent_at_utc)"
+    )
+
+
 # ─── View DDL (v3 — apuntadas a canonical.source + bronze.raw_record) ────────
 
 _V_STATION_SUMMARY_DROP = "DROP VIEW IF EXISTS v_station_summary"
@@ -81,10 +109,11 @@ WITH latest_raw AS (
   SELECT DISTINCT ON (source_id)
     source_id,
     payload,
+    observed_at,
     received_at
   FROM bronze.raw_record
   WHERE record_kind = 'sensor_reading'
-  ORDER BY source_id, received_at DESC
+  ORDER BY source_id, received_at DESC, observed_at DESC NULLS LAST
 )
 SELECT
   c.external_ref::uuid                               AS station_uuid,
@@ -111,7 +140,7 @@ SELECT
       'windSpeed',     (lr.payload->>'wind_speed')::numeric,
       'windGust',      (lr.payload->>'wind_gust')::numeric,
       'windDirection', (lr.payload->>'wind_dir')::numeric,
-      'timestamp',     lr.received_at
+      'timestamp',     COALESCE(lr.observed_at, lr.received_at)
     )
   END                                                AS last_values
 FROM canonical.source c
@@ -541,6 +570,9 @@ def upgrade() -> None:
     )
 
     # ── 9. Backfill bronze.*_raw → bronze.raw_record ─────────────────────────
+    # Offset fijo (estándar SQL): no depende de la base de zonas horarias.
+    conn.execute(sa.text("SET LOCAL TIME ZONE INTERVAL '+00:00' HOUR TO MINUTE"))
+    conn.execute(sa.text(_TRY_TIMESTAMPTZ_FN))
     # Tabla temporal de mapeo station_uuid → source_id
     conn.execute(
         sa.text("""
@@ -553,7 +585,7 @@ def upgrade() -> None:
 
     # sensor_raw → raw_record
     conn.execute(
-        sa.text("""
+        sa.text(f"""
         INSERT INTO bronze.raw_record
             (record_id, source_id, source_type, record_kind, payload,
              schema_version, observed_at, received_at, ingestion_meta)
@@ -564,7 +596,7 @@ def upgrade() -> None:
             'sensor_reading',
             sr.payload,
             sr.schema_version,
-            (sr.payload->>'observed_at_utc')::timestamptz,
+            {_observed_at_sql("sr")},
             sr.received_at,
             jsonb_build_object(
                 'key_version', sr.key_version_used,
@@ -578,7 +610,7 @@ def upgrade() -> None:
 
     # empirical_observation_raw → raw_record
     conn.execute(
-        sa.text("""
+        sa.text(f"""
         INSERT INTO bronze.raw_record
             (record_id, source_id, source_type, record_kind, payload,
              schema_version, observed_at, received_at, ingestion_meta)
@@ -589,7 +621,7 @@ def upgrade() -> None:
             'empirical_observation',
             er.payload,
             er.schema_version,
-            (er.payload->>'observed_at_utc')::timestamptz,
+            {_observed_at_sql("er")},
             er.received_at,
             jsonb_build_object('key_version', er.key_version_used)
         FROM bronze.empirical_observation_raw er
@@ -600,7 +632,7 @@ def upgrade() -> None:
 
     # empirical_event_raw → raw_record
     conn.execute(
-        sa.text("""
+        sa.text(f"""
         INSERT INTO bronze.raw_record
             (record_id, source_id, source_type, record_kind, payload,
              schema_version, observed_at, received_at, ingestion_meta)
@@ -611,7 +643,7 @@ def upgrade() -> None:
             'empirical_event',
             ev.payload,
             ev.schema_version,
-            (ev.payload->>'observed_at_utc')::timestamptz,
+            {_observed_at_sql("ev")},
             ev.received_at,
             jsonb_build_object('key_version', ev.key_version_used)
         FROM bronze.empirical_event_raw ev
