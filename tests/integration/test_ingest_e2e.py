@@ -78,7 +78,7 @@ def _db_ready() -> tuple[bool, str]:
     if not rows:
         return False, "DB sin migrar (alembic_version vacía)"
     version = rows[0]["version_num"]
-    if version != "0003_m0_canonical_model":
+    if version not in ("0003_m0_canonical_model", "0004_fix_network_uptime"):
         return False, f"DB en revisión {version!r}; correr alembic upgrade head"
     return True, ""
 

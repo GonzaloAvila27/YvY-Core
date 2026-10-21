@@ -1,7 +1,7 @@
 """Alta de estaciones post-M0 con ``yvy-server create-station`` (C-1b).
 
 Contra Postgres real migrado a head, igual que ``test_ingest_e2e.py``. Se
-skipea si la base no está disponible o no está en ``0003_m0_canonical_model``.
+skipea si la base no está disponible o no está migrada a la 0003 o posterior.
 
 Cubre:
 - alta OK: una sola transacción crea ``station`` (con ``code``),
@@ -48,7 +48,10 @@ def _db_ready() -> tuple[bool, str]:
         rows = _run_sql("SELECT version_num FROM alembic_version")
     except Exception as exc:
         return False, f"Postgres no disponible: {exc.__class__.__name__}"
-    if not rows or rows[0]["version_num"] != "0003_m0_canonical_model":
+    if not rows or rows[0]["version_num"] not in (
+        "0003_m0_canonical_model",
+        "0004_fix_network_uptime",
+    ):
         return False, "DB no migrada a 0003; correr alembic upgrade head"
     return True, ""
 
