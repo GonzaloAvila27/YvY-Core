@@ -6,7 +6,9 @@ bloqueante de todo el Track DATA y del refactor Web/Core v3.
 
 Qué hace:
   1. Agrega columnas a public.station (code, locality, province, lat/lon, active).
-  2. Siembra 18 estaciones IEA en public.station.
+  2. Completa code/locality/province/active de las estaciones reales existentes
+     (UPDATE por station_uuid, sin INSERT) y copia location_lat/lon a
+     latitude/longitude.
   3. Crea schemas: canonical, silver, gold, knowledge, auth, exports, catalog.
   4. Instala extensiones: pgvector (requerido), PostGIS (latente, graceful si no está).
   5. Crea tablas canónicas (unit, source_type, variable, source, sensor, indicator).
@@ -18,11 +20,15 @@ Qué hace:
  10. Crea silver.measurement, gold.indicator_value, knowledge.*, auth.*, exports.*,
      catalog.dataset — vacías, listas para sus fases respectivas.
  11. Re-apunta views v_network_status y v_station_summary a canonical.source +
-     bronze.raw_record. Contrato externo (DATA-CONTRACT) intacto.
+     bronze.raw_record. Contrato externo (DATA-CONTRACT) intacto. Ambas
+     consideran solo estaciones con active = true.
 
 Downgrade (para CI roundtrip testing):
   - Dropa views nuevas.
-  - Dropa schemas nuevos (CASCADE).
+  - Dropa schemas nuevos (CASCADE). En producción esos schemas existían
+    vacíos antes de la 003, así que el downgrade no deja exactamente el
+    estado previo (y además borra raw_record): no usarlo como rollback, ver
+    RUNBOOK_M0_API_PUBLICA_2026-10.md §7.
   - Recrea bronze.*_raw vacías (estado 0002 — SIN views: en 0002 no existían).
   - Dropa columnas de public.station.
 
@@ -33,6 +39,7 @@ Create Date: 2026-06-15
 
 from __future__ import annotations
 
+import logging
 import uuid
 from collections.abc import Sequence
 
@@ -45,34 +52,52 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
-# ─── IEA seed data ───────────────────────────────────────────────────────────
-_IEA_STATIONS = [
-    ("IEA-01", "IEA Nº1 San Ignacio", "San Ignacio", -27.2574, -55.5353, False),
-    ("IEA-02", "IEA Nº2 Oberá", "Oberá", -27.4878, -55.1203, False),
-    ("IEA-03", "IEA Nº3 Eldorado", "Eldorado", -26.4033, -54.6292, False),
-    ("IEA-04", "IEA Nº4 Bonpland", "Bonpland", -27.4820, -55.4640, False),
-    ("IEA-05", "IEA Nº5 Apóstoles", "Apóstoles", -27.9156, -55.7551, False),
-    ("IEA-06", "IEA Nº6 Puerto Rico", "Puerto Rico", -26.8011, -55.0261, False),
-    ("IEA-07", "IEA Nº7 Garupá", "Garupá", -27.4869, -55.8276, True),
-    ("IEA-08", "IEA Nº8 Montecarlo", "Montecarlo", -26.5680, -54.7630, False),
-    ("IEA-09", "IEA Nº9 Aristóbulo del Valle", "Aristóbulo del Valle", -27.0985, -54.9410, False),
-    ("IEA-10", "IEA Nº10 El Soberbio", "El Soberbio", -27.2930, -54.1980, False),
-    ("IEA-11", "IEA Nº11 San Pedro", "San Pedro", -26.6230, -54.1080, False),
-    ("IEA-12", "IEA Nº12 Jardín América", "Jardín América", -27.0350, -55.2280, False),
-    ("IEA-13", "IEA Nº13 25 de Mayo", "25 de Mayo", -27.3730, -54.7410, False),
-    ("IEA-14", "IEA Nº14 Leandro N. Alem", "Leandro N. Alem", -27.5980, -55.3220, False),
-    ("IEA-15", "IEA Nº15 Cerro Azul", "Cerro Azul", -27.6340, -55.4810, False),
-    ("IEA-16", "IEA Nº16 San Javier", "San Javier", -27.8760, -55.1320, False),
-    (
-        "IEA-17",
-        "IEA Nº17 Concepción de la Sierra",
-        "Concepción de la Sierra",
-        -27.9960,
-        -55.5220,
-        False,
-    ),
-    ("IEA-18", "IEA Nº18 Posadas", "Posadas", -27.3671, -55.8963, False),
+# ─── Estaciones reales (C-1, 2026-10) ───────────────────────────────────────
+# La 003 NO inserta estaciones: solo completa las columnas nuevas de las que ya
+# existen en producción, identificadas por su station_uuid (que no puede
+# cambiar: station_credentials tiene FK a él y las Edges firman con él).
+#
+# (station_uuid, code, name, locality, active)
+#   name / locality en None → se conserva el nombre actual / locality queda NULL.
+#   IEA 7: nombre y localidad de la semilla original (corrección final manual,
+#   ver RUNBOOK_M0_API_PUBLICA_2026-10.md §6).
+# En una base donde estos UUIDs no existen (CI, desarrollo) los UPDATE no
+# afectan filas; las estaciones no mapeadas quedan con code NULL.
+_REAL_STATIONS: list[tuple[str, str, str | None, str | None, bool]] = [
+    ("084f6ffd-b28f-4c45-83d9-6b401b55248c", "IEA-01", None, None, True),
+    ("3b9811c1-ee25-4062-90cc-43f7b777bfcb", "IEA-04", None, None, True),
+    ("d9d14fce-2eb3-4521-a1cf-54022dded7d2", "IEA-07", "IEA Nº7 Garupá", "Garupá", True),
+    ("e45774f2-4a98-4486-86c5-953217a27a07", "IEA-13", None, None, True),
+    ("688cb5a9-678e-4cd5-9447-bef4df265ece", "TEST-00", None, None, False),
 ]
+
+
+# ─── Timestamp de observación (C-2) ──────────────────────────────────────────
+# Misma prioridad que BronzeRepository._extract_observed_at:
+#   payload.observed_at_utc → payload.observed_at → sent_at_utc del envelope.
+# El payload real de sensor_raw usa "observed_at"; observed_at_utc lo usan las
+# observaciones empíricas. Un valor que no parsea como timestamp se ignora
+# (NULL) en lugar de abortar la migración. Los timestamps sin zona se toman
+# como UTC (la migración fija la zona en +00:00), igual que el repositorio.
+_TRY_TIMESTAMPTZ_FN = """
+CREATE FUNCTION pg_temp.yvy_try_timestamptz(value text) RETURNS timestamptz
+LANGUAGE plpgsql IMMUTABLE AS $$
+BEGIN
+  RETURN value::timestamptz;
+EXCEPTION WHEN others THEN
+  RETURN NULL;
+END
+$$
+"""
+
+
+def _observed_at_sql(alias: str) -> str:
+    """Expresión SQL del timestamp de observación para una fila ``*_raw``."""
+    return (
+        f"COALESCE(pg_temp.yvy_try_timestamptz({alias}.payload->>'observed_at_utc'), "
+        f"pg_temp.yvy_try_timestamptz({alias}.payload->>'observed_at'), "
+        f"{alias}.sent_at_utc)"
+    )
 
 
 # ─── View DDL (v3 — apuntadas a canonical.source + bronze.raw_record) ────────
@@ -87,10 +112,11 @@ WITH latest_raw AS (
   SELECT DISTINCT ON (source_id)
     source_id,
     payload,
+    observed_at,
     received_at
   FROM bronze.raw_record
   WHERE record_kind = 'sensor_reading'
-  ORDER BY source_id, received_at DESC
+  ORDER BY source_id, received_at DESC, observed_at DESC NULLS LAST
 )
 SELECT
   c.external_ref::uuid                               AS station_uuid,
@@ -110,19 +136,24 @@ SELECT
   END                                                AS status,
   CASE
     WHEN lr.payload IS NULL THEN NULL
+    -- Valores crudos del payload real de pywws (C-3). Pueden llegar como
+    -- string ("21.6"), número o null: la vista NO castea (un cast fallido
+    -- rompería la consulta entera). El cast seguro lo hace
+    -- PublicReadRepository. wind_dir es el índice de sector de pywws (0-15).
     ELSE jsonb_build_object(
-      'temp',          (lr.payload->>'temp_outdoor')::numeric,
-      'humidity',      (lr.payload->>'hum_outdoor')::int,
-      'pressure',      (lr.payload->>'pressure_rel')::numeric,
-      'windSpeed',     (lr.payload->>'wind_speed')::numeric,
-      'windGust',      (lr.payload->>'wind_gust')::numeric,
-      'windDirection', (lr.payload->>'wind_dir')::numeric,
-      'timestamp',     lr.received_at
+      'temp',          lr.payload->'temp_outdoor',
+      'humidity',      lr.payload->'hum_outdoor',
+      'pressure',      lr.payload->'pressure_abs',
+      'windSpeed',     lr.payload->'wind_speed',
+      'windGust',      lr.payload->'wind_gust',
+      'windDirIndex',  lr.payload->'wind_dir',
+      'timestamp',     COALESCE(lr.observed_at, lr.received_at)
     )
   END                                                AS last_values
 FROM canonical.source c
 LEFT JOIN latest_raw lr ON lr.source_id = c.source_id
 WHERE c.source_type_key = 'weather_station'
+  AND c.active = true
 """
 
 _V_NETWORK_STATUS = """
@@ -144,15 +175,22 @@ WITH
     WHERE record_kind = 'sensor_reading'
       AND received_at >= now() - interval '2 hours'
   ),
+  synced_ever AS (
+    SELECT DISTINCT source_id
+    FROM bronze.raw_record
+    WHERE record_kind = 'sensor_reading'
+  ),
   last_sync AS (
     SELECT MAX(received_at) AS max_received_at
     FROM bronze.raw_record
     WHERE source_type = 'weather_station'
+      AND source_id IN (SELECT source_id FROM active_sources)
   ),
   total_records AS (
     SELECT COUNT(*) AS n
     FROM bronze.raw_record
     WHERE source_type IN ('weather_station', 'human_observation')
+      AND source_id IN (SELECT source_id FROM active_sources)
   ),
   localities AS (
     SELECT COUNT(DISTINCT c.metadata->>'locality') AS cnt
@@ -184,18 +222,25 @@ WITH
       WHERE source_type = 'weather_station'
         AND record_kind = 'sensor_reading'
         AND received_at >= now() - interval '30 days'
+        AND source_id IN (SELECT source_id FROM active_sources)
     ) b ON b.bucket = g.bucket
   )
+-- Solo cuentan estaciones activas (active = true). Las inactivas (p. ej.
+-- TEST-00) no aparecen en ningún indicador público.
+-- offline: activas que alguna vez enviaron, pero no en las últimas 2 h.
+-- pending: activas que nunca enviaron (mismo criterio que status = 'pending'
+-- en v_station_summary).
 SELECT
   (SELECT COUNT(*) FROM active_sources)::int             AS total_nodes,
   (SELECT COUNT(*) FROM recent_syncs
    WHERE source_id IN (SELECT source_id FROM active_sources))::int
                                                          AS active_nodes,
   (SELECT COUNT(*) FROM active_sources
-   WHERE source_id NOT IN (SELECT source_id FROM synced_2h))::int
+   WHERE source_id IN (SELECT source_id FROM synced_ever)
+     AND source_id NOT IN (SELECT source_id FROM synced_2h))::int
                                                          AS offline_nodes,
-  (SELECT COUNT(*) FROM canonical.source
-   WHERE source_type_key = 'weather_station' AND active = false)::int
+  (SELECT COUNT(*) FROM active_sources
+   WHERE source_id NOT IN (SELECT source_id FROM synced_ever))::int
                                                          AS pending_nodes,
   (SELECT n FROM total_records)::bigint                  AS total_records,
   (SELECT cnt FROM localities)::int                      AS localities_count,
@@ -276,32 +321,61 @@ def upgrade() -> None:
     op.create_unique_constraint("uq_station_code", "station", ["code"])
     op.create_index("ix_station_active", "station", ["active"])
 
-    # ── 2. Seed 18 IEAs en public.station ────────────────────────────────────
-    for code, name, locality, lat, lon, active in _IEA_STATIONS:
+    # ── 2. Completar las estaciones existentes (sin INSERT) ───────────────────
+    # Coordenadas: se copian de location_lat/location_lon si existen; si no,
+    # quedan NULL. No se inventan coordenadas.
+    conn.execute(sa.text("UPDATE station SET latitude = location_lat, longitude = location_lon"))
+    for station_uuid, code, name, locality, active in _REAL_STATIONS:
         conn.execute(
             sa.text("""
-                INSERT INTO station
-                  (station_uuid, name, code, locality, province,
-                   latitude, longitude, active)
-                VALUES
-                  (:uuid, :name, :code, :locality, 'Misiones',
-                   :lat, :lon, :active)
-                ON CONFLICT DO NOTHING
+                UPDATE station
+                   SET code     = :code,
+                       name     = COALESCE(:name, name),
+                       locality = :locality,
+                       province = 'Misiones',
+                       active   = :active
+                 WHERE station_uuid = :uuid
             """),
             {
-                "uuid": uuid.uuid4(),
-                "name": name,
+                "uuid": uuid.UUID(station_uuid),
                 "code": code,
+                "name": name,
                 "locality": locality,
-                "lat": lat,
-                "lon": lon,
                 "active": active,
             },
+        )
+    unmapped = conn.execute(sa.text("SELECT count(*) FROM station WHERE code IS NULL")).scalar_one()
+    if unmapped:
+        logging.getLogger("alembic.runtime.migration").warning(
+            "0003: %s estación(es) sin mapeo quedan con code NULL", unmapped
         )
 
     # ── 3. Schemas ───────────────────────────────────────────────────────────
     for schema in ("canonical", "silver", "gold", "knowledge", "auth", "exports", "catalog"):
         conn.execute(sa.text(f"CREATE SCHEMA IF NOT EXISTS {schema}"))
+
+    # C-4: en producción estos schemas ya existen (vacíos, creados fuera de
+    # Alembic). IF NOT EXISTS los tolera; lo que no se tolera es que tengan
+    # tablas, porque los CREATE TABLE de abajo chocarían a mitad de camino.
+    # Se aborta antes, con un mensaje claro.
+    existing = (
+        conn.execute(
+            sa.text("""
+            SELECT table_schema || '.' || table_name AS name
+            FROM information_schema.tables
+            WHERE table_schema IN
+                ('canonical', 'silver', 'gold', 'knowledge', 'auth', 'exports', 'catalog')
+            ORDER BY 1
+        """)
+        )
+        .scalars()
+        .all()
+    )
+    if existing:
+        raise RuntimeError(
+            "0003: los schemas del modelo canónico ya contienen tablas "
+            f"({', '.join(existing)}). Se esperaban vacíos; revisar antes de migrar."
+        )
 
     # ── 4. Extensiones ───────────────────────────────────────────────────────
     # pgvector: requerido para knowledge.embedding
@@ -526,6 +600,9 @@ def upgrade() -> None:
     )
 
     # ── 9. Backfill bronze.*_raw → bronze.raw_record ─────────────────────────
+    # Offset fijo (estándar SQL): no depende de la base de zonas horarias.
+    conn.execute(sa.text("SET LOCAL TIME ZONE INTERVAL '+00:00' HOUR TO MINUTE"))
+    conn.execute(sa.text(_TRY_TIMESTAMPTZ_FN))
     # Tabla temporal de mapeo station_uuid → source_id
     conn.execute(
         sa.text("""
@@ -538,7 +615,7 @@ def upgrade() -> None:
 
     # sensor_raw → raw_record
     conn.execute(
-        sa.text("""
+        sa.text(f"""
         INSERT INTO bronze.raw_record
             (record_id, source_id, source_type, record_kind, payload,
              schema_version, observed_at, received_at, ingestion_meta)
@@ -549,7 +626,7 @@ def upgrade() -> None:
             'sensor_reading',
             sr.payload,
             sr.schema_version,
-            (sr.payload->>'observed_at_utc')::timestamptz,
+            {_observed_at_sql("sr")},
             sr.received_at,
             jsonb_build_object(
                 'key_version', sr.key_version_used,
@@ -563,7 +640,7 @@ def upgrade() -> None:
 
     # empirical_observation_raw → raw_record
     conn.execute(
-        sa.text("""
+        sa.text(f"""
         INSERT INTO bronze.raw_record
             (record_id, source_id, source_type, record_kind, payload,
              schema_version, observed_at, received_at, ingestion_meta)
@@ -574,7 +651,7 @@ def upgrade() -> None:
             'empirical_observation',
             er.payload,
             er.schema_version,
-            (er.payload->>'observed_at_utc')::timestamptz,
+            {_observed_at_sql("er")},
             er.received_at,
             jsonb_build_object('key_version', er.key_version_used)
         FROM bronze.empirical_observation_raw er
@@ -585,7 +662,7 @@ def upgrade() -> None:
 
     # empirical_event_raw → raw_record
     conn.execute(
-        sa.text("""
+        sa.text(f"""
         INSERT INTO bronze.raw_record
             (record_id, source_id, source_type, record_kind, payload,
              schema_version, observed_at, received_at, ingestion_meta)
@@ -596,7 +673,7 @@ def upgrade() -> None:
             'empirical_event',
             ev.payload,
             ev.schema_version,
-            (ev.payload->>'observed_at_utc')::timestamptz,
+            {_observed_at_sql("ev")},
             ev.received_at,
             jsonb_build_object('key_version', ev.key_version_used)
         FROM bronze.empirical_event_raw ev

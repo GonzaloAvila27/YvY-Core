@@ -13,3 +13,7 @@ class Station:
     location_name: str | None
     created_at: datetime | None = None
     deactivated_at: datetime | None = None
+    # Columnas post-M0 (migración 003). code es único en la tabla.
+    code: str | None = None
+    locality: str | None = None
+    province: str | None = None

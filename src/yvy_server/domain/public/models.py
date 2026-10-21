@@ -21,7 +21,7 @@ class LastValues:
     pressure: Decimal | None
     wind_speed: Decimal | None
     wind_gust: Decimal | None
-    wind_direction: Decimal | None
+    wind_direction: Decimal | None  # grados (convertido del índice de sector de pywws)
     timestamp: datetime | None
 
 
@@ -30,7 +30,7 @@ class StationSummary:
     """Public summary of a single station — feeds /public/stations."""
 
     station_uuid: UUID
-    code: str
+    code: str | None
     name: str
     locality: str | None
     province: str

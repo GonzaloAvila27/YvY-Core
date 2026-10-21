@@ -45,6 +45,12 @@ class StationRepository:
         orm = result.scalar_one_or_none()
         return _orm_to_station(orm) if orm is not None else None
 
+    async def code_exists(self, session: AsyncSession, code: str) -> bool:
+        """True si ya hay una estación con ese ``code`` (UNIQUE en la tabla)."""
+        stmt = select(StationORM.station_uuid).where(StationORM.code == code).limit(1)
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none() is not None
+
     async def insert(self, session: AsyncSession, station: Station) -> None:
         """Insert a new station.
 
@@ -52,17 +58,27 @@ class StationRepository:
         caller already has the ``Station`` VO with the UUID it generated.
         Server defaults populate ``created_at``; ``deactivated_at`` stays
         NULL by default.
+
+        ``latitude``/``longitude`` (columnas post-M0) se copian de
+        ``location_lat``/``location_lon``, igual que hace la 003 con las
+        estaciones existentes. ``province`` usa el default de la tabla
+        (``'Misiones'``) si no se informa.
         """
-        session.add(
-            StationORM(
-                station_uuid=station.station_uuid,
-                name=station.name,
-                description=station.description,
-                location_lat=station.location_lat,
-                location_lon=station.location_lon,
-                location_name=station.location_name,
-            )
+        orm = StationORM(
+            station_uuid=station.station_uuid,
+            name=station.name,
+            description=station.description,
+            location_lat=station.location_lat,
+            location_lon=station.location_lon,
+            location_name=station.location_name,
+            code=station.code,
+            locality=station.locality,
+            latitude=station.location_lat,
+            longitude=station.location_lon,
         )
+        if station.province is not None:
+            orm.province = station.province
+        session.add(orm)
 
 
 def _orm_to_station(orm: StationORM) -> Station:
@@ -76,4 +92,7 @@ def _orm_to_station(orm: StationORM) -> Station:
         location_name=orm.location_name,
         created_at=orm.created_at,
         deactivated_at=orm.deactivated_at,
+        code=orm.code,
+        locality=orm.locality,
+        province=orm.province,
     )

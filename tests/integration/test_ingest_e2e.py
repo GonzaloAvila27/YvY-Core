@@ -106,6 +106,8 @@ def station(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Any]:
             "create-station",
             "--name",
             f"TEST integración {uuid.uuid4().hex[:8]}",
+            "--code",
+            f"TEST-{uuid.uuid4().hex[:8]}",
             "--location-name",
             "Test, Misiones",
             "--location-lat",
