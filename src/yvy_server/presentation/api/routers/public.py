@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC
+from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
 
@@ -43,9 +44,14 @@ SessionDep = Annotated[AsyncSession, Depends(get_session_dep)]
 # ─── Helpers ────────────────────────────────────────────────────────────
 
 
+def _num(value: Decimal | int | None) -> float | None:
+    """Valor numérico del contrato público: number JSON (float) o null."""
+    return float(value) if value is not None else None
+
+
 def _to_station_schema(s: StationSummary) -> StationSchema:
     coords = (
-        CoordinatesSchema(lat=s.latitude, lng=s.longitude)
+        CoordinatesSchema(lat=float(s.latitude), lng=float(s.longitude))
         if s.latitude is not None and s.longitude is not None
         else None
     )
@@ -53,12 +59,12 @@ def _to_station_schema(s: StationSummary) -> StationSchema:
     if s.last_values is not None:
         v: LastValues = s.last_values
         lv = LastValuesSchema(
-            temp=v.temp,
-            humidity=v.humidity,
-            pressure=v.pressure,
-            windSpeed=v.wind_speed,
-            windGust=v.wind_gust,
-            windDirection=v.wind_direction,
+            temp=_num(v.temp),
+            humidity=_num(v.humidity),
+            pressure=_num(v.pressure),
+            windSpeed=_num(v.wind_speed),
+            windGust=_num(v.wind_gust),
+            windDirection=_num(v.wind_direction),
             timestamp=v.timestamp,
         )
     return StationSchema(

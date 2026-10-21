@@ -217,8 +217,8 @@ class TestLastValuesPayloadReal:
         lv = body["lastValues"]
         assert body["code"] == "IEA-13"
         assert body["coordinates"] is None
-        assert lv["temp"] == "21.6"
-        assert lv["windDirection"] == "22.5"
+        assert lv["temp"] == 21.6
+        assert lv["windDirection"] == 22.5
         # Campos del contrato que dependen de C13: presentes y en null.
         assert lv["dewpoint"] is None
         assert lv["vpd"] is None
@@ -245,4 +245,4 @@ class TestLastValuesPayloadReal:
     def test_coordenadas_desde_numeric(self) -> None:
         row = _view_row(latitude=Decimal("-27.366"), longitude=Decimal("-55.896"))
         body = _to_station_schema(row_to_summary(row)).model_dump(mode="json")
-        assert body["coordinates"] == {"lat": "-27.366", "lng": "-55.896"}
+        assert body["coordinates"] == {"lat": -27.366, "lng": -55.896}
