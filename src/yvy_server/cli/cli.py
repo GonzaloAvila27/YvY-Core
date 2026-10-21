@@ -42,6 +42,7 @@ from uuid import UUID, uuid4
 
 import typer
 from sqlalchemy import text as sql_text
+from sqlalchemy.exc import IntegrityError
 
 from yvy_server import __version__
 from yvy_server.config import get_settings
@@ -56,6 +57,19 @@ from yvy_server.infrastructure.persistence import (
     StationRepository,
 )
 from yvy_server.logging_setup import setup_logging
+
+# Exit code de ``create-station`` cuando el ``--code`` ya existe. Distinto de
+# 1 (error genérico) y de 2 (uso incorrecto de la CLI, lo emite Typer).
+EXIT_DUPLICATE_CODE = 3
+
+
+class DuplicateStationCodeError(Exception):
+    """El ``code`` pedido ya pertenece a otra estación."""
+
+    def __init__(self, code: str) -> None:
+        super().__init__(f"ya existe una estación con code={code!r}")
+        self.code = code
+
 
 app = typer.Typer(
     name="yvy-server",
@@ -77,6 +91,12 @@ def create_station(
         "-n",
         help="Display name (e.g. 'IEA 7 - Cerro Azul').",
     ),
+    code: str = typer.Option(
+        ...,
+        "--code",
+        "-c",
+        help="Código único de la estación (formato de la red, p. ej. 'IEA-07').",
+    ),
     description: str | None = typer.Option(None, "--description", help="Free-form description."),
     location_lat: float | None = typer.Option(
         None,
@@ -93,6 +113,16 @@ def create_station(
         "--location-name",
         help="Human-readable location (e.g. 'Cerro Azul, Misiones').",
     ),
+    locality: str | None = typer.Option(
+        None,
+        "--locality",
+        help="Localidad (e.g. 'Cerro Azul'). Se publica en /api/v1/public/stations.",
+    ),
+    province: str | None = typer.Option(
+        None,
+        "--province",
+        help="Provincia. Si se omite, queda 'Misiones' (default de la tabla).",
+    ),
     output_file: Path | None = typer.Option(
         None,
         "--output-file",
@@ -105,21 +135,30 @@ def create_station(
     Generates a UUID4 and a 32-byte (256-bit) HMAC-SHA256 key. Inserts
     the rows in ``station``, ``station_credentials`` (key_version=1) and
     ``canonical.source`` (post-M0: sin source la estación no puede
-    ingestar). Prints the credentials JSON to stdout for the operator
-    to deliver to the IEA.
+    ingestar) in a single transaction. Prints the credentials JSON to
+    stdout for the operator to deliver to the IEA.
+
+    ``--code`` es obligatorio y único. Si ya existe, el comando termina
+    con exit code ``EXIT_DUPLICATE_CODE`` y un mensaje claro, sin escribir
+    nada.
 
     The JSON contains: ``station_uuid``, ``key_version``, ``key_hmac_hex``,
     ``name``, ``created_at_utc``. The edge needs at minimum
     ``station_uuid`` and ``key_hmac_hex`` to build signed envelopes.
 
-    Exits with code 0 on success, 1 on any error (DB unreachable,
-    constraint violation, etc).
+    Exits with code 0 on success, ``EXIT_DUPLICATE_CODE`` if the code is
+    taken, 1 on any other error (DB unreachable, etc).
     """
     settings = get_settings()
     # CLI logs go to stderr so stdout stays pipe-friendly (the JSON
     # credentials are the only thing on stdout).
     setup_logging(settings.log_level, stream=sys.stderr)
     log = logging.getLogger("yvy.cli")
+
+    code = code.strip()
+    if not code:
+        typer.secho("ERROR: --code no puede estar vacío", fg="red", err=True)
+        raise typer.Exit(code=1)
 
     # 1. Generate identity in-memory
     station_uuid = uuid4()
@@ -134,6 +173,9 @@ def create_station(
                 settings=settings,
                 station_uuid=station_uuid,
                 name=name,
+                code=code,
+                locality=locality,
+                province=province,
                 description=description,
                 location_lat=location_lat,
                 location_lon=location_lon,
@@ -142,6 +184,11 @@ def create_station(
                 created_at=now,
             )
         )
+    except DuplicateStationCodeError as err:
+        # Error esperado del operador: mensaje claro, sin traceback. La
+        # transacción ya hizo rollback, no quedan filas a medias.
+        typer.secho(f"ERROR: {err}. No se creó ninguna fila.", fg="red", err=True)
+        raise typer.Exit(code=EXIT_DUPLICATE_CODE) from None
     except Exception as err:
         log.exception(
             "create_station failed",
@@ -159,6 +206,7 @@ def create_station(
         "key_version": 1,
         "key_hmac_hex": key_hmac_hex,
         "name": name,
+        "code": code,
         "created_at_utc": now.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
     }
 
@@ -184,6 +232,7 @@ def create_station(
         extra={
             "station_uuid": str(station_uuid),
             "display_name": name,
+            "code": code,
             "key_version": 1,
             "key_length_bytes": len(key_bytes),
         },
@@ -195,6 +244,9 @@ async def _persist_station(
     settings: Any,  # Settings (avoid import cycle in type hint)
     station_uuid: UUID,
     name: str,
+    code: str,
+    locality: str | None,
+    province: str | None,
     description: str | None,
     location_lat: float | None,
     location_lon: float | None,
@@ -212,11 +264,19 @@ async def _persist_station(
     ``canonical.source`` la estación queda registrada pero NO puede
     ingestar (LookupError → 500). Por eso el source se crea acá, en la
     misma transacción (requisito del RUNBOOK_CICDv3 §5).
+
+    Raises:
+        DuplicateStationCodeError: si ``code`` ya existe. Se chequea antes de
+            insertar y también se traduce la violación de ``uq_station_code``
+            (alta concurrente); en ambos casos la transacción hace rollback.
     """
     engine, factory = create_engine_and_session_factory(settings)
     try:
         async with factory() as session, session.begin():
-            await StationRepository().insert(
+            station_repo = StationRepository()
+            if await station_repo.code_exists(session, code):
+                raise DuplicateStationCodeError(code)
+            await station_repo.insert(
                 session,
                 Station(
                     station_uuid=station_uuid,
@@ -227,9 +287,17 @@ async def _persist_station(
                     location_name=location_name,
                     created_at=created_at,
                     deactivated_at=None,
+                    code=code,
+                    locality=locality,
+                    province=province,
                 ),
             )
-            await session.flush()
+            try:
+                await session.flush()
+            except IntegrityError as exc:
+                if "uq_station_code" in str(exc.orig):
+                    raise DuplicateStationCodeError(code) from None
+                raise
             await CredentialRepository().insert(
                 session,
                 StationCredential(
@@ -261,8 +329,9 @@ async def _persist_station(
                     "name": name,
                     "metadata": json.dumps(
                         {
-                            "locality": location_name,
-                            "province": "Misiones",
+                            "code": code,
+                            "locality": locality,
+                            "province": province or "Misiones",
                             "latitude": location_lat,
                             "longitude": location_lon,
                         }
