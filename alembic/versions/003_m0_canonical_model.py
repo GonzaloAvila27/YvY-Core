@@ -25,7 +25,10 @@ Qué hace:
 
 Downgrade (para CI roundtrip testing):
   - Dropa views nuevas.
-  - Dropa schemas nuevos (CASCADE).
+  - Dropa schemas nuevos (CASCADE). En producción esos schemas existían
+    vacíos antes de la 003, así que el downgrade no deja exactamente el
+    estado previo (y además borra raw_record): no usarlo como rollback, ver
+    RUNBOOK_M0_API_PUBLICA_2026-10.md §7.
   - Recrea bronze.*_raw vacías (estado 0002 — SIN views: en 0002 no existían).
   - Dropa columnas de public.station.
 
@@ -350,6 +353,29 @@ def upgrade() -> None:
     # ── 3. Schemas ───────────────────────────────────────────────────────────
     for schema in ("canonical", "silver", "gold", "knowledge", "auth", "exports", "catalog"):
         conn.execute(sa.text(f"CREATE SCHEMA IF NOT EXISTS {schema}"))
+
+    # C-4: en producción estos schemas ya existen (vacíos, creados fuera de
+    # Alembic). IF NOT EXISTS los tolera; lo que no se tolera es que tengan
+    # tablas, porque los CREATE TABLE de abajo chocarían a mitad de camino.
+    # Se aborta antes, con un mensaje claro.
+    existing = (
+        conn.execute(
+            sa.text("""
+            SELECT table_schema || '.' || table_name AS name
+            FROM information_schema.tables
+            WHERE table_schema IN
+                ('canonical', 'silver', 'gold', 'knowledge', 'auth', 'exports', 'catalog')
+            ORDER BY 1
+        """)
+        )
+        .scalars()
+        .all()
+    )
+    if existing:
+        raise RuntimeError(
+            "0003: los schemas del modelo canónico ya contienen tablas "
+            f"({', '.join(existing)}). Se esperaban vacíos; revisar antes de migrar."
+        )
 
     # ── 4. Extensiones ───────────────────────────────────────────────────────
     # pgvector: requerido para knowledge.embedding
