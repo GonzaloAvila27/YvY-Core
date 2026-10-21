@@ -133,13 +133,17 @@ SELECT
   END                                                AS status,
   CASE
     WHEN lr.payload IS NULL THEN NULL
+    -- Valores crudos del payload real de pywws (C-3). Pueden llegar como
+    -- string ("21.6"), número o null: la vista NO castea (un cast fallido
+    -- rompería la consulta entera). El cast seguro lo hace
+    -- PublicReadRepository. wind_dir es el índice de sector de pywws (0-15).
     ELSE jsonb_build_object(
-      'temp',          (lr.payload->>'temp_outdoor')::numeric,
-      'humidity',      (lr.payload->>'hum_outdoor')::int,
-      'pressure',      (lr.payload->>'pressure_rel')::numeric,
-      'windSpeed',     (lr.payload->>'wind_speed')::numeric,
-      'windGust',      (lr.payload->>'wind_gust')::numeric,
-      'windDirection', (lr.payload->>'wind_dir')::numeric,
+      'temp',          lr.payload->'temp_outdoor',
+      'humidity',      lr.payload->'hum_outdoor',
+      'pressure',      lr.payload->'pressure_abs',
+      'windSpeed',     lr.payload->'wind_speed',
+      'windGust',      lr.payload->'wind_gust',
+      'windDirIndex',  lr.payload->'wind_dir',
       'timestamp',     COALESCE(lr.observed_at, lr.received_at)
     )
   END                                                AS last_values
