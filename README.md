@@ -115,6 +115,12 @@ poetry run yvy-server --help
 poetry run yvy-server create-station --help
 ```
 
+## Scripts de operación del servidor
+
+`scripts/backup-nvme-to-hdd.sh` + `scripts/yvy-backup-disk.{service,timer}` — backup diario completo del disco del servidor (`nvme0n1`) hacia el HDD de 1TB (`/dev/sda5`, montado en `/backup`). Usa snapshots LVM de las LVs `root`/`var` para copiar un estado consistente sin downtime, y `rsync --link-dest` para que cada corrida incremental solo consuma espacio por los cambios reales.
+
+No se despliega automáticamente — son archivos de referencia versionados acá; la instalación real en `yvy-server` (systemd timer a las 04:00, corrección de `/etc/fstab`, etc.) se hace a mano siguiendo el procedimiento documentado en `YVY_Docs/operacion/backup-disco-completo.md`. Cualquier cambio a estos archivos debe reflejarse también en el servidor y en esa documentación.
+
 ## Documentos relacionados
 
 - `YVY_FASE9_Arquitectura_v2.md` — arquitectura completa de la fase.

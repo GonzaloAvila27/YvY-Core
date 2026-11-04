@@ -1,0 +1,10 @@
+[Unit]
+Description=Dispara backup-nvme-to-hdd.sh todos los días a las 04:00
+
+[Timer]
+OnCalendar=*-*-* 04:00:00
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,12 @@
+[Unit]
+Description=Backup diario de disco completo (nvme0n1) hacia HDD /backup (/dev/sda5)
+After=local-fs.target
+ConditionPathIsMountPoint=/backup
+
+[Service]
+Type=oneshot
+ExecStart=/opt/yvy-server/scripts/backup-nvme-to-hdd.sh
+User=root
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
